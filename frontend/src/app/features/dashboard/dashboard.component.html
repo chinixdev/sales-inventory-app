@@ -1,0 +1,29 @@
+<div class="dashboard-container">
+  <header class="dashboard-header">
+    <h1>Panel de Control — SalesInventory</h1>
+    <p class="subtitle">Gestión centralizada de ventas, inventario en tiempo real y catálogo</p>
+    <p class="api-status">Estado: {{ apiStatus }}</p>
+    <p *ngIf="errorMessage" class="api-error" role="alert">{{ errorMessage }}</p>
+  </header>
+
+  <div class="stats-grid">
+    <div class="stat-card" *ngFor="let stat of systemStats">
+      <div class="stat-icon">{{ stat.icon }}</div>
+      <div class="stat-content">
+        <h3>{{ stat.value }}</h3>
+        <p>{{ stat.label }}</p>
+        <a [routerLink]="stat.link" class="stat-link">Ver detalles &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <section class="quick-actions">
+    <h2>Accesos Rápidos</h2>
+    <div class="action-buttons">
+      <a routerLink="/products" class="btn btn-primary">📦 Catálogo de Productos</a>
+      <a routerLink="/sales" class="btn btn-secondary">💰 Registro de Ventas</a>
+      <a routerLink="/inventory" class="btn btn-accent">📊 Movimientos de Stock</a>
+      <a routerLink="/categories" class="btn btn-outline">🏷️ Categorías</a>
+    </div>
+  </section>
+</div>

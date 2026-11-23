@@ -1,0 +1,52 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h2>Categorías de Productos</h2>
+      <p class="subtitle">Clasificación y organización del catálogo comercial</p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="startCreate()">+ Nueva Categoría</button>
+  </div>
+
+  <p *ngIf="errorMessage" class="api-error" role="alert">{{ errorMessage }}</p>
+  <p *ngIf="successMessage" class="api-success" role="status">{{ successMessage }}</p>
+
+  <form *ngIf="showForm" #categoryForm="ngForm" class="content-card operation-form" (ngSubmit)="save()">
+    <h3>{{ editingCategoryId === null ? 'Nueva categoría' : 'Editar categoría' }}</h3>
+    <label for="category-name">Nombre</label>
+    <input id="category-name" name="name" [(ngModel)]="name" required minlength="2" maxlength="100" />
+    <label *ngIf="editingCategoryId !== null" class="checkbox-field">
+      <input type="checkbox" name="isActive" [(ngModel)]="isActive" />
+      Activa
+    </label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit" [disabled]="categoryForm.invalid || isSaving">
+        {{ isSaving ? 'Guardando…' : 'Guardar' }}
+      </button>
+      <button class="btn btn-outline" type="button" (click)="cancelForm()">Cancelar</button>
+    </div>
+  </form>
+
+  <div class="content-card">
+    <p *ngIf="isLoading" class="state-message">Cargando categorías…</p>
+    <div *ngIf="!isLoading && categories.length === 0" class="empty-state">
+      <p>No hay categorías registradas.</p>
+      <small>Crea categorías para organizar el catálogo de productos.</small>
+    </div>
+    <table *ngIf="!isLoading && categories.length > 0" class="data-table">
+      <thead>
+        <tr><th>Nombre</th><th>Productos</th><th>Estado</th><th>Acciones</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let category of categories">
+          <td>{{ category.name }}</td>
+          <td>{{ category.productCount }}</td>
+          <td>{{ category.isActive ? 'Activa' : 'Inactiva' }}</td>
+          <td class="table-actions">
+            <button class="btn btn-outline" type="button" (click)="edit(category)">Editar</button>
+            <button class="btn btn-danger" type="button" (click)="delete(category)">Eliminar</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

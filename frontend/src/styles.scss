@@ -1,0 +1,185 @@
+/* Global Application Styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+  background-color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: #f1f5f9;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.operation-form {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.operation-form h3,
+.detail-panel h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+}
+
+.form-grid label,
+.filter-row label,
+.sale-item-row label {
+  display: grid;
+  gap: 0.4rem;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.form-grid-wide {
+  grid-column: 1 / -1;
+}
+
+.operation-form input:not([type='checkbox']),
+.operation-form select,
+.operation-form textarea,
+.filter-row input,
+.filter-row select,
+.sale-item-row input,
+.sale-item-row select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.checkbox-field {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem !important;
+}
+
+.form-actions,
+.table-actions,
+.pagination,
+.filter-row,
+.sale-item-row {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.filter-row {
+  margin-bottom: 1rem;
+}
+
+.filter-row > label {
+  min-width: 160px;
+}
+
+.sale-item-row {
+  align-items: end;
+}
+
+.sale-item-row label:first-child {
+  flex: 1 1 320px;
+}
+
+.sale-item-row label:nth-child(2) {
+  width: 140px;
+}
+
+.btn-outline,
+.btn-danger {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.55rem 0.8rem;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.api-error,
+.api-success,
+.api-status,
+.form-hint {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+}
+
+.api-error {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.api-success {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.api-status,
+.form-hint {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.pagination {
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.detail-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+@media (max-width: 760px) {
+  .data-table {
+    display: block;
+    overflow-x: auto;
+  }
+}

@@ -1,0 +1,81 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h2>Kardex y Movimientos de Inventario</h2>
+      <p class="subtitle">Auditoría completa de entradas (IN), salidas (OUT) y ajustes (ADJUSTMENT)</p>
+    </div>
+    <a class="btn btn-primary" href="#movement-form">+ Registrar Movimiento</a>
+  </div>
+
+  <p *ngIf="errorMessage" class="api-error" role="alert">{{ errorMessage }}</p>
+  <p *ngIf="successMessage" class="api-success" role="status">{{ successMessage }}</p>
+
+  <form id="movement-form" #movementForm="ngForm" class="content-card operation-form" (ngSubmit)="submitMovement()">
+    <h3>Registrar movimiento</h3>
+    <div class="form-grid">
+      <label>Tipo
+        <select name="movementType" [(ngModel)]="movementType">
+          <option value="entry">Entrada de stock</option>
+          <option value="adjustment">Ajuste a stock final</option>
+        </select>
+      </label>
+      <label>Producto
+        <select name="productId" [(ngModel)]="form.productId" required>
+          <option [ngValue]="null" disabled>Selecciona un producto</option>
+          <option *ngFor="let product of products" [ngValue]="product.id">{{ product.sku }} — {{ product.name }} (stock {{ product.stock }})</option>
+        </select>
+      </label>
+      <label *ngIf="movementType === 'entry'">Cantidad a ingresar
+        <input name="quantity" type="number" [(ngModel)]="form.quantity" required min="1" step="1" />
+      </label>
+      <label *ngIf="movementType === 'adjustment'">Stock final
+        <input name="newStock" type="number" [(ngModel)]="form.newStock" required min="0" step="1" />
+      </label>
+      <label class="form-grid-wide">Motivo
+        <input name="reason" [(ngModel)]="form.reason" required minlength="3" maxlength="300" />
+      </label>
+    </div>
+    <p class="form-hint">El usuario actor se toma de la sesión autenticada; no se envía en la solicitud.</p>
+    <button class="btn btn-primary" type="submit" [disabled]="movementForm.invalid || isSaving || products.length === 0">
+      {{ isSaving ? 'Registrando…' : 'Registrar' }}
+    </button>
+  </form>
+
+  <div class="content-card">
+    <form class="filter-row" (ngSubmit)="applyFilter()">
+      <label>Filtrar por producto
+        <select name="productFilter" [(ngModel)]="productFilter">
+          <option [ngValue]="null">Todos</option>
+          <option *ngFor="let product of products" [ngValue]="product.id">{{ product.sku }} — {{ product.name }}</option>
+        </select>
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+    <p *ngIf="isLoading" class="state-message">Cargando movimientos…</p>
+    <div *ngIf="!isLoading && movements.length === 0" class="empty-state">
+      <p>No hay registros de movimientos en el Kardex.</p>
+      <small>Cada venta o ajuste generará un registro inmutable con balance de stock.</small>
+    </div>
+    <table *ngIf="!isLoading && movements.length > 0" class="data-table">
+      <thead>
+        <tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Stock</th><th>Usuario</th><th>Motivo</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let movement of movements">
+          <td>{{ movement.createdAt | date:'short' }}</td>
+          <td>{{ movement.movementType }}</td>
+          <td>{{ movement.productSKU }} — {{ movement.productName }}</td>
+          <td>{{ movement.quantity }}</td>
+          <td>{{ movement.previousStock }} → {{ movement.newStock }}</td>
+          <td>{{ movement.userFullName || movement.userId }}</td>
+          <td>{{ movement.reason }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div *ngIf="!isLoading && totalPages > 1" class="pagination">
+      <button class="btn btn-outline" type="button" (click)="changePage(pageNumber - 1)" [disabled]="pageNumber <= 1">Anterior</button>
+      <span>Página {{ pageNumber }} de {{ totalPages }} ({{ totalItems }} movimientos)</span>
+      <button class="btn btn-outline" type="button" (click)="changePage(pageNumber + 1)" [disabled]="pageNumber >= totalPages">Siguiente</button>
+    </div>
+  </div>
+</div>

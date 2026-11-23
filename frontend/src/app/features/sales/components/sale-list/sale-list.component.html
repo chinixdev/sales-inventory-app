@@ -1,0 +1,84 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h2>Historial de Ventas</h2>
+      <p class="subtitle">Transacciones comerciales, detalles de facturación y vendedores</p>
+    </div>
+    <a class="btn btn-primary" href="#sale-form">+ Nueva Venta</a>
+  </div>
+
+  <p *ngIf="errorMessage" class="api-error" role="alert">{{ errorMessage }}</p>
+  <p *ngIf="successMessage" class="api-success" role="status">{{ successMessage }}</p>
+
+  <form id="sale-form" #saleForm="ngForm" class="content-card operation-form" (ngSubmit)="createSale()">
+    <h3>Registrar venta</h3>
+    <div class="sale-item-row" *ngFor="let item of saleItems; index as i">
+      <label>Producto
+        <select [name]="'productId-' + i" [(ngModel)]="item.productId" required>
+          <option [ngValue]="null" disabled>Selecciona un producto</option>
+          <option *ngFor="let product of products" [ngValue]="product.id">{{ product.sku }} — {{ product.name }} ({{ product.stock }} disponibles)</option>
+        </select>
+      </label>
+      <label>Cantidad
+        <input [name]="'quantity-' + i" type="number" [(ngModel)]="item.quantity" required min="1" step="1" />
+      </label>
+      <button class="btn btn-danger" type="button" (click)="removeSaleItem(i)" [disabled]="saleItems.length === 1">Quitar</button>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" type="button" (click)="addSaleItem()">Agregar producto</button>
+      <button class="btn btn-primary" type="submit" [disabled]="saleForm.invalid || isSaving || products.length === 0">
+        {{ isSaving ? 'Registrando…' : 'Registrar venta' }}
+      </button>
+    </div>
+    <p class="form-hint">El vendedor se toma de la sesión autenticada; no se envía un UserId.</p>
+  </form>
+
+  <div class="content-card">
+    <form class="filter-row" (ngSubmit)="applyFilters()">
+      <label>Filtrar por UserId
+        <input name="userIdFilter" type="number" min="1" [(ngModel)]="userIdFilter" />
+      </label>
+      <label>Desde
+        <input name="fromDate" type="date" [(ngModel)]="fromDate" />
+      </label>
+      <label>Hasta
+        <input name="toDate" type="date" [(ngModel)]="toDate" />
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+    <p class="form-hint">UserId aquí solo filtra las ventas consultadas; nunca identifica al actor.</p>
+    <p *ngIf="isLoading" class="state-message">Cargando ventas…</p>
+    <div *ngIf="!isLoading && sales.length === 0" class="empty-state">
+      <p>No se han registrado ventas.</p>
+      <small>Registra una nueva venta para descontar stock automáticamente de forma atómica.</small>
+    </div>
+    <table *ngIf="!isLoading && sales.length > 0" class="data-table">
+      <thead>
+        <tr><th>Venta</th><th>Fecha</th><th>Vendedor</th><th>Productos</th><th>Total</th><th>Detalle</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let sale of sales">
+          <td>#{{ sale.id }}</td>
+          <td>{{ sale.saleDate | date:'short' }}</td>
+          <td>{{ sale.userFullName || sale.userId }}</td>
+          <td>{{ sale.details.length }}</td>
+          <td>{{ sale.total | currency }}</td>
+          <td><button class="btn btn-outline" type="button" (click)="showDetails(sale.id)">Ver detalle</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <section *ngIf="selectedSale" class="detail-panel">
+      <h3>Detalle de venta #{{ selectedSale.id }}</h3>
+      <ul>
+        <li *ngFor="let detail of selectedSale.details">
+          {{ detail.productSKU }} — {{ detail.productName }}: {{ detail.quantity }} × {{ detail.unitPrice | currency }} = {{ detail.subtotal | currency }}
+        </li>
+      </ul>
+    </section>
+    <div *ngIf="!isLoading && totalPages > 1" class="pagination">
+      <button class="btn btn-outline" type="button" (click)="changePage(pageNumber - 1)" [disabled]="pageNumber <= 1">Anterior</button>
+      <span>Página {{ pageNumber }} de {{ totalPages }} ({{ totalItems }} ventas)</span>
+      <button class="btn btn-outline" type="button" (click)="changePage(pageNumber + 1)" [disabled]="pageNumber >= totalPages">Siguiente</button>
+    </div>
+  </div>
+</div>

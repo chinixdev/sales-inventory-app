@@ -1,0 +1,72 @@
+@baseUrl = http://localhost:5235
+
+### List categories
+GET {{baseUrl}}/api/categories
+Accept: application/json
+
+### Get a category
+GET {{baseUrl}}/api/categories/1
+Accept: application/json
+
+### Create a category
+POST {{baseUrl}}/api/categories
+Content-Type: application/json
+
+{
+  "name": "Papelería"
+}
+
+### Update a category
+PUT {{baseUrl}}/api/categories/1
+Content-Type: application/json
+
+{
+  "name": "Papelería y oficina",
+  "isActive": true
+}
+
+### Delete a category
+DELETE {{baseUrl}}/api/categories/1
+
+### List products with search and pagination
+GET {{baseUrl}}/api/products?searchTerm=boligrafo&pageNumber=1&pageSize=10
+Accept: application/json
+
+### Get a product
+GET {{baseUrl}}/api/products/1
+Accept: application/json
+
+### Create a product with initial stock
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "categoryId": 1,
+  "sku": "PEN-001",
+  "name": "Bolígrafo azul",
+  "description": "Punta media",
+  "price": 1.25,
+  "initialStock": 25,
+  "minimumStock": 5
+}
+
+### Update product details (stock is intentionally not accepted)
+PUT {{baseUrl}}/api/products/1
+Content-Type: application/json
+
+{
+  "categoryId": 1,
+  "sku": "PEN-001",
+  "name": "Bolígrafo azul",
+  "description": "Punta media",
+  "price": 1.50,
+  "minimumStock": 5,
+  "isActive": true
+}
+
+### Delete a product
+DELETE {{baseUrl}}/api/products/1
+
+### Example not-found response
+GET {{baseUrl}}/api/products/2147483647
+Accept: application/problem+json

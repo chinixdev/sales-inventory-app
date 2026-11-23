@@ -1,0 +1,129 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h2>Catálogo de Productos</h2>
+      <p class="subtitle">Administración de SKU, precios, categorías y niveles de stock</p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="startCreate()">+ Nuevo Producto</button>
+  </div>
+
+  <p *ngIf="errorMessage" class="api-error" role="alert">{{ errorMessage }}</p>
+  <p *ngIf="successMessage" class="api-success" role="status">{{ successMessage }}</p>
+
+  <form *ngIf="showForm" #productForm="ngForm" class="content-card operation-form" (ngSubmit)="save()">
+    <h3>{{ editingProductId === null ? 'Nuevo producto' : 'Editar producto' }}</h3>
+    <div class="form-grid">
+      <label>Categoría
+        <select name="categoryId" [(ngModel)]="form.categoryId" required>
+          <option [ngValue]="null" disabled>Selecciona una categoría</option>
+          <option *ngFor="let category of categories" [ngValue]="category.id">{{ category.name }}</option>
+        </select>
+      </label>
+      <label>SKU
+        <input name="sku" [(ngModel)]="form.sku" required minlength="3" maxlength="40" />
+      </label>
+      <label>Nombre
+        <input name="name" [(ngModel)]="form.name" required minlength="2" maxlength="150" />
+      </label>
+      <label>Precio
+        <input name="price" type="number" [(ngModel)]="form.price" required min="0.01" step="0.01" />
+      </label>
+      <label>Stock mínimo
+        <input name="minimumStock" type="number" [(ngModel)]="form.minimumStock" required min="0" step="1" />
+      </label>
+      <label *ngIf="editingProductId === null">Stock inicial
+        <input name="initialStock" type="number" [(ngModel)]="form.initialStock" min="0" step="1" />
+      </label>
+      <label class="form-grid-wide">Descripción
+        <textarea name="description" [(ngModel)]="form.description" maxlength="500" rows="2"></textarea>
+      </label>
+      <label *ngIf="editingProductId !== null" class="checkbox-field">
+        <input type="checkbox" name="isActive" [(ngModel)]="form.isActive" />
+        Activo
+      </label>
+    </div>
+    <p *ngIf="editingProductId !== null" class="form-hint">El stock no se cambia desde esta edición.</p>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit" [disabled]="productForm.invalid || isSaving || categories.length === 0">
+        {{ isSaving ? 'Guardando…' : 'Guardar' }}
+      </button>
+      <button class="btn btn-outline" type="button" (click)="cancelForm()">Cancelar</button>
+    </div>
+  </form>
+
+  <div class="content-card">
+    <form class="filter-row" (ngSubmit)="applyFilters()">
+      <label>Buscar
+        <input name="searchTerm" [(ngModel)]="searchTerm" placeholder="SKU o nombre" />
+      </label>
+      <label>Categoría
+        <select name="categoryFilter" [(ngModel)]="categoryFilter">
+          <option [ngValue]="null">Todas</option>
+          <option *ngFor="let category of categories" [ngValue]="category.id">{{ category.name }}</option>
+        </select>
+      </label>
+      <label>Estado
+        <select name="activeOnly" [(ngModel)]="activeOnly">
+          <option [ngValue]="null">Todos</option>
+          <option [ngValue]="true">Activos</option>
+          <option [ngValue]="false">Inactivos</option>
+        </select>
+      </label>
+      <label class="checkbox-field">
+        <input type="checkbox" name="lowStockOnly" [(ngModel)]="lowStockOnly" />
+        Stock bajo
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+    <div *ngIf="isLoading" class="state-message">Cargando productos...</div>
+    <div *ngIf="errorMessage" class="state-message error">{{ errorMessage }}</div>
+
+    <div *ngIf="!isLoading && products.length === 0" class="empty-state">
+      <p>No se encontraron productos registrados.</p>
+      <small>Usa el botón "+ Nuevo Producto" para crear el primero.</small>
+    </div>
+
+    <table *ngIf="!isLoading && products.length > 0" class="data-table">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Nombre</th>
+          <th>Categoría</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th>Mínimo</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let product of products">
+          <td><code>{{ product.sku }}</code></td>
+          <td>{{ product.name }}</td>
+          <td>{{ product.categoryName || 'N/A' }}</td>
+          <td>{{ product.price | currency }}</td>
+          <td>
+            <span [class.stock-low]="product.isBelowMinimumStock">
+              {{ product.stock }}
+            </span>
+          </td>
+          <td>{{ product.minimumStock }}</td>
+          <td>
+            <span class="badge" [class.badge-active]="product.isActive" [class.badge-inactive]="!product.isActive">
+              {{ product.isActive ? 'Activo' : 'Inactivo' }}
+            </span>
+          </td>
+          <td class="table-actions">
+            <button class="btn btn-outline" type="button" (click)="edit(product)">Editar</button>
+            <button class="btn btn-danger" type="button" (click)="delete(product)">Eliminar</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div *ngIf="!isLoading && totalPages > 1" class="pagination">
+      <button class="btn btn-outline" type="button" (click)="changePage(pageNumber - 1)" [disabled]="pageNumber <= 1">Anterior</button>
+      <span>Página {{ pageNumber }} de {{ totalPages }} ({{ totalItems }} productos)</span>
+      <button class="btn btn-outline" type="button" (click)="changePage(pageNumber + 1)" [disabled]="pageNumber >= totalPages">Siguiente</button>
+    </div>
+  </div>
+</div>

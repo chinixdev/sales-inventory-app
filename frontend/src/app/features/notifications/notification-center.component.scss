@@ -1,0 +1,19 @@
+.notification-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+
+.notification {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;
+  padding: 1rem; border: 1px solid var(--color-border); border-radius: 10px; background: #fff;
+
+  &.unread { border-left: 4px solid var(--color-gold); background: #fbf9f4; }
+
+  .body { display: grid; gap: .3rem; min-width: 0; flex: 1 1 280px; }
+  .head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .when { color: var(--color-text-muted); font-size: .8rem; }
+  p { margin: 0; overflow-wrap: anywhere; }
+  small { color: var(--color-text-muted); }
+  .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+}
+
+.unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #a32626; }
+.type-low { background: #f4eddc; color: #6b5527; }
+.type-out { background: #fdeceb; color: #8a1c1c; }

@@ -1,0 +1,163 @@
+<div class="dashboard-container">
+  <header class="dashboard-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="subtitle">Resumen de ventas e inventario</p>
+    </div>
+    <p class="api-pill" [class.ok]="apiOk()" role="status">
+      <span class="dot" aria-hidden="true"></span>{{ apiStatus() }}
+    </p>
+  </header>
+
+  <!-- Indicadores -->
+  <section class="stats-grid" aria-label="Indicadores principales">
+    <article class="stat-card">
+      <div class="stat-icon"><app-icon name="sales" /></div>
+      <div class="stat-content">
+        <p class="stat-label">Ventas de hoy</p>
+        @if (week.loading()) { <h3 class="muted">…</h3> }
+        @else if (week.error()) { <h3 class="muted">—</h3><p class="stat-note">No disponible</p> }
+        @else if (week.data()?.complete) { <h3>{{ today()?.amount | pen }}</h3><p class="stat-note">Suma de las ventas registradas hoy</p> }
+        @else { <h3 class="muted">—</h3><p class="stat-note">No verificable (demasiadas ventas)</p> }
+      </div>
+    </article>
+
+    <article class="stat-card">
+      <div class="stat-icon"><app-icon name="inventory" /></div>
+      <div class="stat-content">
+        <p class="stat-label">Número de ventas hoy</p>
+        @if (week.loading()) { <h3 class="muted">…</h3> }
+        @else if (week.error()) { <h3 class="muted">—</h3><p class="stat-note">No disponible</p> }
+        @else if (week.data()?.complete) { <h3>{{ today()?.count }}</h3><p class="stat-note">{{ week.data()?.totalSalesInRange }} en los últimos 7 días</p> }
+        @else { <h3 class="muted">—</h3><p class="stat-note">{{ week.data()?.totalSalesInRange }} en 7 días (sin desglose diario)</p> }
+      </div>
+    </article>
+
+    <article class="stat-card">
+      <div class="stat-icon"><app-icon name="products" /></div>
+      <div class="stat-content">
+        <p class="stat-label">Productos activos</p>
+        @if (activeProducts.loading()) { <h3 class="muted">…</h3> }
+        @else if (activeProducts.error()) { <h3 class="muted">—</h3><p class="stat-note">No disponible</p> }
+        @else { <h3>{{ activeProducts.data() }}</h3><a routerLink="/products" class="stat-link">Ver productos →</a> }
+      </div>
+    </article>
+
+    <article class="stat-card" [class.warn]="(alerts.data()?.totalLow ?? 0) > 0">
+      <div class="stat-icon"><app-icon name="alert" /></div>
+      <div class="stat-content">
+        <p class="stat-label">Productos con stock bajo</p>
+        @if (alerts.loading()) { <h3 class="muted">…</h3> }
+        @else if (alerts.error()) { <h3 class="muted">—</h3><p class="stat-note">No disponible</p> }
+        @else {
+          <h3>{{ alerts.data()?.totalLow }}</h3>
+          @if (outOfStock() !== null) { <p class="stat-note">{{ outOfStock() }} agotado(s)</p> }
+        }
+      </div>
+    </article>
+  </section>
+
+  <div class="two-col">
+    <!-- Gráfico -->
+    <section class="panel" aria-labelledby="chart-title">
+      <h2 id="chart-title">Ventas de los últimos 7 días</h2>
+      @if (week.loading()) {
+        <app-state-message state="loading" message="Calculando ventas de la semana…" />
+      } @else if (week.error()) {
+        <app-state-message state="error" [message]="week.error()" />
+      } @else if (!week.data()?.complete) {
+        <app-state-message state="empty" message="Gráfico no disponible."
+          hint="Hay demasiadas ventas en el periodo para consolidarlas de forma verificable desde el navegador." />
+      } @else if (weekTotal() === 0) {
+        <app-state-message state="empty" message="No hay ventas en los últimos 7 días." />
+      } @else {
+        <div class="chart" role="img" [attr.aria-label]="chartLabel()">
+          @for (day of week.data()!.days; track day.key) {
+            <div class="bar-col">
+              <span class="bar-value">{{ day.amount > 0 ? (day.amount | pen) : '' }}</span>
+              <div class="bar-track"><div class="bar" [style.height.%]="barHeight(day.amount)"></div></div>
+              <span class="bar-label">{{ day.label }}</span>
+            </div>
+          }
+        </div>
+        <p class="chart-note">Total de la semana: <strong>{{ weekTotal() | pen }}</strong>. Importes en soles (S/), por día de tu zona horaria.</p>
+      }
+    </section>
+
+    <!-- Alertas -->
+    <section class="panel" aria-labelledby="alerts-title">
+      <h2 id="alerts-title">Alertas de stock</h2>
+      @if (alerts.loading()) {
+        <app-state-message state="loading" message="Revisando inventario…" />
+      } @else if (alerts.error()) {
+        <app-state-message state="error" [message]="alerts.error()" />
+      } @else if (sortedAlerts().length === 0) {
+        <app-state-message state="empty" message="Ningún producto activo con stock bajo." />
+      } @else {
+        <ul class="alert-list">
+          @for (product of sortedAlerts().slice(0, 8); track product.id) {
+            <li>
+              <span>
+                <strong>{{ product.name }}</strong>
+                <small>{{ product.sku }} · mínimo {{ product.minimumStock }}</small>
+              </span>
+              <span class="badge" [class.badge-out]="product.stock <= 0" [class.badge-low]="product.stock > 0">
+                {{ product.stock <= 0 ? 'Agotado' : product.stock + ' u.' }}
+              </span>
+            </li>
+          }
+        </ul>
+        @if (!alerts.data()?.complete) {
+          <p class="chart-note">Se consultaron los primeros {{ alerts.data()?.items?.length }} de {{ alerts.data()?.totalLow }} productos con stock bajo (orden alfabético); el listado no incluye todos.</p>
+        } @else if (sortedAlerts().length > 8) {
+          <p class="chart-note">Mostrando 8 de {{ sortedAlerts().length }}. <a routerLink="/products">Ver productos</a></p>
+        }
+      }
+    </section>
+  </div>
+
+  <!-- Ventas recientes -->
+  <section class="panel" aria-labelledby="recent-title">
+    <div class="panel-head">
+      <h2 id="recent-title">Ventas recientes</h2>
+      <a routerLink="/sales" class="stat-link">Ver todas →</a>
+    </div>
+    @if (recent.loading()) {
+      <app-state-message state="loading" message="Cargando ventas recientes…" />
+    } @else if (recent.error()) {
+      <app-state-message state="error" [message]="recent.error()" />
+    } @else if ((recent.data() ?? []).length === 0) {
+      <app-state-message state="empty" message="Aún no hay ventas registradas." />
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">Últimas ventas registradas</caption>
+          <thead>
+            <tr><th scope="col">Venta</th><th scope="col">Fecha</th><th scope="col">Vendedor</th><th scope="col" class="num">Productos</th><th scope="col" class="num">Total</th></tr>
+          </thead>
+          <tbody>
+            @for (sale of recent.data(); track sale.id) {
+              <tr>
+                <td>#{{ sale.id }}</td>
+                <td>{{ sale.saleDate | appDate }}</td>
+                <td>{{ sale.userFullName || sale.userId }}</td>
+                <td class="num">{{ sale.details.length }}</td>
+                <td class="num">{{ sale.total | pen }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section class="quick-actions" aria-labelledby="quick-title">
+    <h2 id="quick-title">Accesos rápidos</h2>
+    <div class="action-buttons">
+      <a routerLink="/sales" class="btn btn-primary">Registrar venta</a>
+      <a routerLink="/inventory" class="btn btn-outline">Movimientos de stock</a>
+      <a routerLink="/products" class="btn btn-outline">Productos</a>
+      <a routerLink="/categories" class="btn btn-outline">Categorías</a>
+    </div>
+  </section>
+</div>

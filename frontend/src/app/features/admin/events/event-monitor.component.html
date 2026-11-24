@@ -1,0 +1,168 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h1>Monitor de eventos</h1>
+      <p class="subtitle">Estado del procesamiento asíncrono (Transactional Outbox)</p>
+    </div>
+    <button type="button" class="btn btn-outline" (click)="refreshAll()">Actualizar</button>
+  </div>
+
+  @if (actionError()) { <p class="api-error" role="alert">{{ actionError() }}</p> }
+  @if (notice()) { <p class="api-success" role="status">{{ notice() }}</p> }
+
+  <!-- Indicadores -->
+  <section aria-label="Resumen por estado">
+    @if (summaryLoading()) {
+      <app-state-message state="loading" message="Cargando resumen…" />
+    } @else if (summaryError()) {
+      <app-state-message state="error" [message]="summaryError()" [retryable]="true" (retry)="loadSummary()" />
+    } @else if (summary(); as s) {
+      <div class="indicators">
+        <button type="button" class="indicator status-pending" (click)="filterByStatus('Pending')" [attr.aria-pressed]="statusFilter() === 'Pending'">
+          <span class="value">{{ s.pending }}</span><span class="label">Pending</span>
+        </button>
+        <button type="button" class="indicator status-processing" (click)="filterByStatus('Processing')" [attr.aria-pressed]="statusFilter() === 'Processing'">
+          <span class="value">{{ s.processing }}</span><span class="label">Processing</span>
+          @if (s.expiredLeases > 0) { <span class="hint">{{ s.expiredLeases }} con lease vencido</span> }
+        </button>
+        <button type="button" class="indicator status-processed" (click)="filterByStatus('Processed')" [attr.aria-pressed]="statusFilter() === 'Processed'">
+          <span class="value">{{ s.processed }}</span><span class="label">Processed</span>
+        </button>
+        <button type="button" class="indicator status-failed" (click)="filterByStatus('Failed')" [attr.aria-pressed]="statusFilter() === 'Failed'">
+          <span class="value">{{ s.failed }}</span><span class="label">Failed</span>
+        </button>
+      </div>
+      @if (s.oldestPendingAtUtc) {
+        <p class="oldest">Evento pendiente más antiguo: {{ s.oldestPendingAtUtc | appDate }}</p>
+      }
+    }
+  </section>
+
+  <div class="content-card">
+    <form class="filter-row" (ngSubmit)="applyFilters()" role="search">
+      <label>Estado
+        <select name="status" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+          <option value="">Todos</option>
+          <option value="Pending">Pending</option>
+          <option value="Processing">Processing</option>
+          <option value="Processed">Processed</option>
+          <option value="Failed">Failed</option>
+        </select>
+      </label>
+      <label>Tipo de evento
+        <input name="eventType" placeholder="SaleCompleted.v1" [ngModel]="eventTypeFilter()" (ngModelChange)="eventTypeFilter.set($event)" />
+      </label>
+      <label>Desde
+        <input name="from" type="date" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event)" />
+      </label>
+      <label>Hasta
+        <input name="to" type="date" [ngModel]="toDate()" (ngModelChange)="toDate.set($event)" />
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+      @if (hasFilters()) {
+        <button class="btn btn-outline" type="button" (click)="clearFilters()">Limpiar</button>
+      }
+    </form>
+
+    @if (isLoading()) {
+      <app-state-message state="loading" message="Cargando eventos…" />
+    } @else if (loadError()) {
+      <app-state-message state="error" [message]="loadError()" [retryable]="true" (retry)="loadMessages()" />
+    } @else if (messages().length === 0) {
+      <app-state-message state="empty"
+        [message]="hasFilters() ? 'Ningún evento coincide con los filtros.' : 'Aún no hay eventos registrados.'" />
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">Eventos del Outbox</caption>
+          <thead>
+            <tr>
+              <th scope="col">Evento</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Ocurrió</th>
+              <th scope="col" class="num">Intentos</th>
+              <th scope="col">Próximo intento</th>
+              <th scope="col">Último error</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (message of messages(); track message.id) {
+              <tr>
+                <td><code>{{ shortId(message.id) }}</code></td>
+                <td>{{ message.eventType }}</td>
+                <td><span class="badge" [class]="'badge ' + statusClass(message.status)">{{ message.status }}</span></td>
+                <td>{{ message.occurredAtUtc | appDate }}</td>
+                <td class="num">{{ message.retryCount }}</td>
+                <td>{{ message.status === 'Pending' ? (message.nextAttemptAtUtc | appDate) : '—' }}</td>
+                <td class="error-cell">{{ message.lastError || '—' }}</td>
+                <td class="table-actions">
+                  <button class="btn btn-outline" type="button" (click)="showDetail(message.id)"
+                          [attr.aria-expanded]="selected()?.id === message.id"
+                          [attr.aria-label]="'Detalle del evento ' + shortId(message.id)">Detalle</button>
+                  @if (isAdmin() && message.status === 'Failed') {
+                    <button class="btn btn-danger" type="button" (click)="requestRequeue(message)"
+                            [attr.aria-label]="'Reprocesar el evento ' + shortId(message.id)">Reprocesar</button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (detailLoading()) {
+        <app-state-message state="loading" message="Cargando detalle…" />
+      } @else if (selected(); as detail) {
+        <section class="detail-panel" aria-label="Detalle técnico del evento">
+          <h2>Evento {{ detail.id }}</h2>
+          <dl class="detail-grid">
+            <div><dt>Tipo</dt><dd>{{ detail.eventType }}</dd></div>
+            <div><dt>Estado</dt><dd><span class="badge" [class]="'badge ' + statusClass(detail.status)">{{ detail.status }}</span></dd></div>
+            <div><dt>Ocurrió</dt><dd>{{ detail.occurredAtUtc | appDate }}</dd></div>
+            <div><dt>Procesado</dt><dd>{{ detail.processedAtUtc ? (detail.processedAtUtc | appDate) : '—' }}</dd></div>
+            <div><dt>Intentos</dt><dd>{{ detail.retryCount }}</dd></div>
+            <div><dt>Próximo intento</dt><dd>{{ detail.nextAttemptAtUtc | appDate }}</dd></div>
+            @if (detail.status === 'Processing') {
+              <div><dt>Lease hasta</dt><dd>{{ detail.lockedUntilUtc ? (detail.lockedUntilUtc | appDate) : '—' }}{{ detail.leaseExpired ? ' (vencido)' : '' }}</dd></div>
+            }
+            <div><dt>Tamaño del payload</dt><dd>{{ detail.payloadBytes }} bytes</dd></div>
+            @if (detail.saleId !== null) { <div><dt>Venta</dt><dd>#{{ detail.saleId }}</dd></div> }
+            @if (detail.itemCount !== null) { <div><dt>Líneas</dt><dd>{{ detail.itemCount }}</dd></div> }
+          </dl>
+          @if (detail.lastError) {
+            <p class="detail-error"><strong>Último error:</strong> {{ detail.lastError }}</p>
+          }
+          <h3>Consumidores que ya lo procesaron</h3>
+          @if (detail.consumers.length === 0) {
+            <p class="muted">Ninguno todavía.</p>
+          } @else {
+            <ul>
+              @for (consumer of detail.consumers; track consumer.consumer) {
+                <li><code>{{ consumer.consumer }}</code> · {{ consumer.processedAtUtc | appDate }}</li>
+              }
+            </ul>
+          }
+          <p class="muted">Por seguridad no se muestra el contenido del evento.</p>
+        </section>
+      }
+
+      @if (totalPages() > 1) {
+        <nav class="pagination" aria-label="Paginación de eventos">
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() - 1)" [disabled]="pageNumber() <= 1">Anterior</button>
+          <span aria-live="polite">Página {{ pageNumber() }} de {{ totalPages() }} ({{ totalItems() }} eventos)</span>
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() + 1)" [disabled]="pageNumber() >= totalPages()">Siguiente</button>
+        </nav>
+      }
+    }
+  </div>
+</div>
+
+<app-confirm-dialog
+  [open]="pendingRequeue() !== null"
+  title="Reprocesar evento"
+  [message]="'¿Volver a encolar el evento ' + shortId(pendingRequeue()?.id ?? '') + ' (' + (pendingRequeue()?.eventType ?? '') + ')? Mantiene su identificador y los registros de consumidores ya procesados.'"
+  confirmLabel="Reprocesar"
+  (confirmed)="confirmRequeue()"
+  (cancelled)="pendingRequeue.set(null)" />

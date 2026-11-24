@@ -1,0 +1,140 @@
+name: Performance (k6)
+
+# Solo manual: NUNCA en cada push. Levanta un entorno temporal y aislado (SQL Server efímero + API local en el runner),
+# ejecuta k6 contra él y lo destruye al terminar. No toca ninguna base existente.
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Escenario (all = smoke + load + concurrency; stress solo si se elige explícitamente)'
+        type: choice
+        default: all
+        options: [all, smoke, load, concurrency, stress]
+      load_vus:
+        description: 'Usuarios virtuales del load test (1-25)'
+        default: '10'
+      load_duration:
+        description: 'Duración sostenida del load test (p. ej. 5m)'
+        default: '5m'
+      stress_max_vus:
+        description: 'Máximo de usuarios virtuales del stress test (2-100)'
+        default: '50'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  k6:
+    name: k6 (${{ inputs.scenario }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # SQL Server efímero del job (no es un secreto real): existe solo mientras dura esta ejecución.
+      MSSQL_SA_PASSWORD: Perf-Only_Throwaway-4k2Z
+      BASE_URL: http://127.0.0.1:5235
+      PERF_CONFIRM_TEST_ENV: 'yes'
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: Perf-Only_Throwaway-4k2Z
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P $MSSQL_SA_PASSWORD -Q 'SELECT 1' -b"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 20s
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: backend/**/*.csproj
+
+      - uses: grafana/setup-k6-action@v1
+
+      - name: Credenciales y configuración efímeras (generadas en esta ejecución)
+        run: |
+          JWT_KEY="$(openssl rand -base64 48)"
+          ADMIN_PASSWORD="$(openssl rand -base64 18)Aa1"
+          echo "::add-mask::$JWT_KEY"
+          echo "::add-mask::$ADMIN_PASSWORD"
+          {
+            echo "Jwt__Issuer=SalesInventory.Perf"
+            echo "Jwt__Audience=SalesInventory.Perf.Client"
+            echo "Jwt__SigningKey=$JWT_KEY"
+            echo "DevelopmentAdmin__Email=perf-admin@perf.test"
+            echo "DevelopmentAdmin__Password=$ADMIN_PASSWORD"
+            echo "ADMIN_EMAIL=perf-admin@perf.test"
+            echo "ADMIN_PASSWORD=$ADMIN_PASSWORD"
+            echo "ConnectionStrings__DefaultConnection=Server=127.0.0.1,1433;Database=SalesInventoryPerf;User Id=sa;Password=$MSSQL_SA_PASSWORD;TrustServerCertificate=True;Encrypt=False"
+            echo "ASPNETCORE_ENVIRONMENT=Development"
+          } >> "$GITHUB_ENV"
+
+      - name: Aplicar migraciones (base temporal del job)
+        run: |
+          dotnet tool install --global dotnet-ef
+          dotnet restore backend/SalesInventory.sln
+          dotnet ef database update \
+            --project backend/src/SalesInventory.Infrastructure \
+            --startup-project backend/src/SalesInventory.Api
+
+      - name: Iniciar la API (Release) y esperar readiness
+        run: |
+          dotnet build backend/src/SalesInventory.Api -c Release --no-restore
+          mkdir -p tests/performance/results
+          nohup dotnet backend/src/SalesInventory.Api/bin/Release/net10.0/SalesInventory.Api.dll \
+            --urls "$BASE_URL" > tests/performance/results/api.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS "$BASE_URL/health/ready" > /dev/null; then echo "API lista"; exit 0; fi
+            sleep 2
+          done
+          echo "La API no estuvo lista a tiempo" >&2
+          tail -n 50 tests/performance/results/api.log >&2 || true
+          exit 1
+
+      - name: k6 smoke
+        if: inputs.scenario == 'all' || inputs.scenario == 'smoke'
+        run: k6 run tests/performance/smoke.js
+
+      - name: k6 load
+        if: (inputs.scenario == 'all' || inputs.scenario == 'load') && !cancelled()
+        env:
+          LOAD_VUS: ${{ inputs.load_vus }}
+          LOAD_DURATION: ${{ inputs.load_duration }}
+        run: k6 run tests/performance/load.js
+
+      - name: k6 concurrency
+        if: (inputs.scenario == 'all' || inputs.scenario == 'concurrency') && !cancelled()
+        run: k6 run tests/performance/concurrency.js
+
+      - name: k6 stress (solo si se eligió explícitamente)
+        if: inputs.scenario == 'stress'
+        env:
+          STRESS_MAX_VUS: ${{ inputs.stress_max_vus }}
+        run: k6 run tests/performance/stress.js
+
+      - name: Resumen en la página del workflow
+        if: always()
+        run: |
+          {
+            echo '### Resultados k6 (de ESTA ejecución; los umbrales son iniciales y configurables)'
+            for f in tests/performance/results/*.txt; do [ -f "$f" ] && { echo '```'; cat "$f"; echo '```'; }; done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-results
+          path: tests/performance/results/
+          if-no-files-found: warn

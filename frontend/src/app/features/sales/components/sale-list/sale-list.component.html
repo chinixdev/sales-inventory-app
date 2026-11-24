@@ -1,0 +1,221 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h1>Ventas</h1>
+      <p class="subtitle">Registro de ventas y consulta del historial</p>
+    </div>
+  </div>
+
+  @if (actionError()) { <p class="api-error" role="alert">{{ actionError() }}</p> }
+  @if (notice()) { <p class="api-status" role="status">{{ notice() }}</p> }
+
+  @if (createdSale(); as sale) {
+    <section class="content-card sale-summary" aria-labelledby="summary-title" role="status">
+      <div class="summary-head">
+        <h2 id="summary-title">Venta #{{ sale.id }} registrada</h2>
+        <button type="button" class="btn btn-outline" (click)="dismissCreated()">Cerrar</button>
+      </div>
+      <p class="meta">{{ sale.saleDate | appDate }} · {{ sale.userFullName || 'Usuario ' + sale.userId }}</p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">Detalle de la venta registrada</caption>
+          <thead><tr><th scope="col">Producto</th><th scope="col" class="num">Cant.</th><th scope="col" class="num">P. unitario</th><th scope="col" class="num">Subtotal</th></tr></thead>
+          <tbody>
+            @for (detail of sale.details; track detail.id) {
+              <tr>
+                <td>{{ detail.productSKU }} — {{ detail.productName }}</td>
+                <td class="num">{{ detail.quantity }}</td>
+                <td class="num">{{ detail.unitPrice | pen }}</td>
+                <td class="num">{{ detail.subtotal | pen }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot><tr><th scope="row" colspan="3" class="num">Total</th><td class="num total">{{ sale.total | pen }}</td></tr></tfoot>
+        </table>
+      </div>
+    </section>
+  }
+
+  <section class="content-card" aria-labelledby="new-sale-title">
+    <h2 id="new-sale-title">Registrar venta</h2>
+
+    <div class="sale-grid">
+      <div class="picker">
+        <form class="search-row" (ngSubmit)="loadProducts()" role="search">
+          <label class="sr-only" for="product-search">Buscar producto</label>
+          <input id="product-search" name="productSearch" type="search" placeholder="Buscar por SKU o nombre"
+                 [ngModel]="productSearch()" (ngModelChange)="productSearch.set($event)" />
+          <button class="btn btn-outline" type="submit">Buscar</button>
+        </form>
+
+        @if (isLoadingProducts()) {
+          <app-state-message state="loading" message="Cargando productos…" />
+        } @else if (productsError()) {
+          <app-state-message state="error" [message]="productsError()" [retryable]="true" (retry)="loadProducts()" />
+        } @else if (products().length === 0) {
+          <app-state-message state="empty" message="No hay productos activos que coincidan." />
+        } @else {
+          <ul class="product-list">
+            @for (product of products(); track product.id) {
+              <li>
+                <div class="product-info">
+                  <strong>{{ product.name }}</strong>
+                  <small>{{ product.sku }} · {{ product.price | pen }} ·
+                    @if (product.stock < 1) { <span class="stock-low">Sin stock</span> }
+                    @else { <span [class.stock-low]="product.isBelowMinimumStock">{{ product.stock }} disponibles</span> }
+                  </small>
+                </div>
+                <button class="btn btn-outline" type="button" (click)="addToCart(product)"
+                        [disabled]="product.stock < 1" [attr.aria-label]="'Agregar ' + product.name">
+                  {{ inCart(product.id) ? 'Sumar' : 'Agregar' }}
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="cart">
+        <h3>Carrito</h3>
+        @if (cart().length === 0) {
+          <app-state-message state="empty" message="El carrito está vacío." hint="Agrega productos desde la lista." />
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table cart-table">
+              <caption class="sr-only">Productos de la venta</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Producto</th>
+                  <th scope="col" class="num">P. unit.</th>
+                  <th scope="col">Cantidad</th>
+                  <th scope="col" class="num">Subtotal</th>
+                  <th scope="col"><span class="sr-only">Quitar</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of cart(); track line.productId; let i = $index) {
+                  <tr>
+                    <td>{{ line.name }}<br /><small class="muted">{{ line.sku }} · stock {{ line.stock }}</small></td>
+                    <td class="num">{{ line.unitPrice | pen }}</td>
+                    <td>
+                      <input class="qty" type="number" min="1" step="1" [max]="line.stock"
+                             [value]="line.quantity" (input)="setQuantity(line.productId, $any($event.target).value)"
+                             [attr.aria-label]="'Cantidad de ' + line.name"
+                             [attr.aria-invalid]="cartIssues()[i] ? true : null" />
+                      @if (cartIssues()[i]; as issue) { <small class="field-error" role="alert">{{ issue }}</small> }
+                    </td>
+                    <td class="num">{{ lineSubtotal(line) | pen }}</td>
+                    <td>
+                      <button class="btn btn-danger" type="button" (click)="removeFromCart(line.productId)"
+                              [attr.aria-label]="'Quitar ' + line.name">Quitar</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr><th scope="row" colspan="3" class="num">Total estimado</th><td class="num total">{{ estimatedTotal() | pen }}</td><td></td></tr>
+              </tfoot>
+            </table>
+          </div>
+          <p class="form-hint">Los precios y el total son estimados; el servidor calcula los valores definitivos al registrar.</p>
+        }
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="button" (click)="requestSale()" [disabled]="!canSubmit()">
+            {{ isSaving() ? 'Registrando…' : 'Registrar venta' }}
+          </button>
+          @if (cart().length > 0) {
+            <button class="btn btn-outline" type="button" (click)="clearCart()" [disabled]="isSaving()">Vaciar carrito</button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-card" aria-labelledby="history-title">
+    <h2 id="history-title">Historial</h2>
+    <form class="filter-row" (ngSubmit)="applyFilters()" role="search">
+      <label>Vendedor (UserId)
+        <input name="userIdFilter" type="number" min="1" [ngModel]="userIdFilter()" (ngModelChange)="userIdFilter.set($event || null)" />
+      </label>
+      <label>Desde
+        <input name="fromDate" type="date" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event)" />
+      </label>
+      <label>Hasta
+        <input name="toDate" type="date" [ngModel]="toDate()" (ngModelChange)="toDate.set($event)" />
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+      @if (hasFilters()) {
+        <button class="btn btn-outline" type="button" (click)="clearFilters()">Limpiar</button>
+      }
+    </form>
+
+    @if (isLoading()) {
+      <app-state-message state="loading" message="Cargando ventas…" />
+    } @else if (loadError()) {
+      <app-state-message state="error" [message]="loadError()" [retryable]="true" (retry)="loadSales()" />
+    } @else if (sales().length === 0) {
+      <app-state-message state="empty"
+        [message]="hasFilters() ? 'Ninguna venta coincide con los filtros.' : 'Aún no hay ventas registradas.'" />
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">Historial de ventas</caption>
+          <thead>
+            <tr>
+              <th scope="col">Venta</th><th scope="col">Fecha</th><th scope="col">Vendedor</th>
+              <th scope="col" class="num">Productos</th><th scope="col" class="num">Total</th><th scope="col">Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (sale of sales(); track sale.id) {
+              <tr>
+                <td>#{{ sale.id }}</td>
+                <td>{{ sale.saleDate | appDate }}</td>
+                <td>{{ sale.userFullName || sale.userId }}</td>
+                <td class="num">{{ sale.details.length }}</td>
+                <td class="num">{{ sale.total | pen }}</td>
+                <td>
+                  <button class="btn btn-outline" type="button" (click)="showDetails(sale.id)"
+                          [attr.aria-expanded]="selectedSale()?.id === sale.id">
+                    {{ selectedSale()?.id === sale.id ? 'Ocultar' : 'Ver detalle' }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (isLoadingDetail()) {
+        <app-state-message state="loading" message="Cargando detalle…" />
+      } @else if (selectedSale(); as sale) {
+        <section class="detail-panel" aria-label="Detalle de la venta seleccionada">
+          <h3>Detalle de venta #{{ sale.id }}</h3>
+          <ul>
+            @for (detail of sale.details; track detail.id) {
+              <li>{{ detail.productSKU }} — {{ detail.productName }}: {{ detail.quantity }} × {{ detail.unitPrice | pen }} = {{ detail.subtotal | pen }}</li>
+            }
+          </ul>
+          <p><strong>Total: {{ sale.total | pen }}</strong></p>
+        </section>
+      }
+
+      @if (totalPages() > 1) {
+        <nav class="pagination" aria-label="Paginación de ventas">
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() - 1)" [disabled]="pageNumber() <= 1">Anterior</button>
+          <span aria-live="polite">Página {{ pageNumber() }} de {{ totalPages() }} ({{ totalItems() }} ventas)</span>
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() + 1)" [disabled]="pageNumber() >= totalPages()">Siguiente</button>
+        </nav>
+      }
+    }
+  </section>
+</div>
+
+<app-confirm-dialog
+  [open]="confirming()"
+  title="Confirmar venta"
+  [message]="confirmMessage()"
+  confirmLabel="Registrar venta"
+  (confirmed)="confirmSale()"
+  (cancelled)="confirming.set(false)" />

@@ -1,0 +1,92 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h1>Categorías</h1>
+      <p class="subtitle">Clasificación y organización del catálogo</p>
+    </div>
+    @if (canWrite()) {
+      <button class="btn btn-primary" type="button" (click)="startCreate()">Nueva categoría</button>
+    }
+  </div>
+
+  @if (actionError()) { <p class="api-error" role="alert">{{ actionError() }}</p> }
+  @if (successMessage()) { <p class="api-success" role="status">{{ successMessage() }}</p> }
+  @if (!canWrite()) {
+    <p class="form-hint">Tu rol permite consultar las categorías, pero no modificarlas.</p>
+  }
+
+  @if (showForm() && canWrite()) {
+    <form #categoryForm="ngForm" class="content-card operation-form" (ngSubmit)="save()" aria-labelledby="category-form-title">
+      <h2 id="category-form-title">{{ editingCategoryId() === null ? 'Nueva categoría' : 'Editar categoría' }}</h2>
+      <label for="category-name">Nombre</label>
+      <input id="category-name" name="name" [(ngModel)]="name" required minlength="2" maxlength="100" #cname="ngModel" />
+      @if (cname.invalid && cname.touched) { <small class="field-error">Entre 2 y 100 caracteres.</small> }
+      @if (editingCategoryId() !== null) {
+        <label class="checkbox-field">
+          <input type="checkbox" name="isActive" [(ngModel)]="isActive" />
+          Activa
+        </label>
+      }
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit" [disabled]="categoryForm.invalid || isSaving()">
+          {{ isSaving() ? 'Guardando…' : 'Guardar' }}
+        </button>
+        <button class="btn btn-outline" type="button" (click)="cancelForm()">Cancelar</button>
+      </div>
+    </form>
+  }
+
+  <div class="content-card">
+    @if (isLoading()) {
+      <app-state-message state="loading" message="Cargando categorías…" />
+    } @else if (loadError()) {
+      <app-state-message state="error" [message]="loadError()" [retryable]="true" (retry)="loadCategories()" />
+    } @else if (categories().length === 0) {
+      <app-state-message state="empty" message="No hay categorías registradas."
+        [hint]="canWrite() ? 'Crea categorías para organizar el catálogo de productos.' : ''" />
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">Listado de categorías</caption>
+          <thead>
+            <tr>
+              <th scope="col">Nombre</th>
+              <th scope="col" class="num">Productos</th>
+              <th scope="col">Estado</th>
+              @if (canWrite()) { <th scope="col">Acciones</th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (category of categories(); track category.id) {
+              <tr>
+                <td>{{ category.name }}</td>
+                <td class="num">{{ category.productCount ?? 0 }}</td>
+                <td>
+                  <span class="badge" [class.badge-active]="category.isActive" [class.badge-inactive]="!category.isActive">
+                    {{ category.isActive ? 'Activa' : 'Inactiva' }}
+                  </span>
+                </td>
+                @if (canWrite()) {
+                  <td class="table-actions">
+                    <button class="btn btn-outline" type="button" (click)="edit(category)"
+                            [attr.aria-label]="'Editar ' + category.name">Editar</button>
+                    <button class="btn btn-danger" type="button" (click)="requestDelete(category)"
+                            [attr.aria-label]="'Eliminar ' + category.name">Eliminar</button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+<app-confirm-dialog
+  [open]="pendingDelete() !== null"
+  title="Eliminar categoría"
+  [message]="'¿Eliminar «' + (pendingDelete()?.name ?? '') + '»? Solo es posible si no tiene productos asociados.'"
+  confirmLabel="Eliminar"
+  (confirmed)="confirmDelete()"
+  (cancelled)="pendingDelete.set(null)" />

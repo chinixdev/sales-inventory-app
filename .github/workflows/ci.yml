@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Permisos mínimos: el CI solo lee el repositorio.
+permissions:
+  contents: read
+
+# Una ejecución nueva de la misma rama/PR cancela la anterior (obsoleta).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (build Release + pruebas unitarias)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: backend/**/*.csproj
+
+      - name: Restaurar NuGet
+        run: dotnet restore backend/SalesInventory.sln
+
+      - name: Compilar la solución (Release)
+        run: dotnet build backend/SalesInventory.sln -c Release --no-restore
+
+      - name: Pruebas unitarias
+        run: >
+          dotnet test backend/tests/SalesInventory.UnitTests/SalesInventory.UnitTests.csproj
+          -c Release --no-build
+          --logger "trx;LogFileName=unit-tests.trx"
+          --results-directory TestResults/unit
+
+      - name: Publicar resultados (unitarias)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-unit-test-results
+          path: TestResults/unit/*.trx
+          if-no-files-found: warn
+
+  frontend:
+    name: Frontend (build producción + pruebas Angular)
+    # Windows + PowerShell: Vitest falla con "failed to find the runner" desde Git Bash en esta configuración.
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: frontend
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build de producción
+        run: |
+          npx ng build --configuration production
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Pruebas Angular (sin modo interactivo)
+        run: |
+          New-Item -ItemType Directory -Force -Path test-results | Out-Null
+          npx ng test --watch=false --no-progress 2>&1 | Tee-Object -FilePath test-results/ng-test.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publicar resultados (Angular)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend/test-results/
+          if-no-files-found: warn
+
+  backend-integration:
+    name: Backend (integración con SQL Server real)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Contraseña DESECHABLE de un SQL Server efímero que solo existe durante este job (no es un secreto real).
+      MSSQL_SA_PASSWORD: Ci-Only_Throwaway-9x7Q
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: Ci-Only_Throwaway-9x7Q
+        ports:
+          - 1433:1433
+        # El job no empieza hasta que SQL Server responda.
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P $MSSQL_SA_PASSWORD -Q 'SELECT 1' -b"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 20s
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: backend/**/*.csproj
+
+      - name: Restaurar NuGet
+        run: dotnet restore backend/SalesInventory.sln
+
+      # Las migraciones EF las aplica el propio fixture (Database.MigrateAsync) sobre una base aislada y temporal
+      # por ejecución, que elimina al terminar. No se usa InMemory.
+      - name: Pruebas de integración (SQL Server real)
+        env:
+          SALESINVENTORY_TEST_CONNECTION: Server=localhost,1433;User Id=sa;Password=${{ env.MSSQL_SA_PASSWORD }};TrustServerCertificate=True;Encrypt=False
+        run: >
+          dotnet test backend/tests/SalesInventory.IntegrationTests/SalesInventory.IntegrationTests.csproj
+          -c Release --no-restore
+          --logger "trx;LogFileName=integration-tests.trx"
+          --results-directory TestResults/integration
+
+      - name: Publicar resultados (integración)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-integration-test-results
+          path: TestResults/integration/*.trx
+          if-no-files-found: warn

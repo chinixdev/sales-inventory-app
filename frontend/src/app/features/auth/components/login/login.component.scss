@@ -1,0 +1,58 @@
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1fr);
+  min-height: 100vh;
+}
+
+.auth-brand {
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  gap: .75rem; padding: 3rem; background: var(--color-primary); color: #dfe8e5;
+  border-right: 3px solid var(--color-gold);
+
+  h2 { margin: 0; font-size: 2rem; color: #fff; letter-spacing: .02em; }
+  p { margin: 0; max-width: 320px; color: #b9c9c4; }
+}
+
+.brand-mark {
+  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 12px;
+  border: 1.5px solid var(--color-gold); color: var(--color-gold); font-weight: 700;
+}
+
+.auth-panel { display: grid; place-items: center; padding: 1.5rem; background: var(--color-bg); }
+
+.auth-card {
+  width: 100%; max-width: 400px; padding: 2.25rem; background: #fff;
+  border: 1px solid var(--color-border); border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(21, 44, 40, .08);
+
+  h1 { margin: 0 0 .25rem; font-size: 1.5rem; color: var(--color-primary); }
+  .lead { margin: 0 0 1.75rem; color: var(--color-text-muted); font-size: .92rem; }
+}
+
+.auth-form { display: flex; flex-direction: column; gap: 1.1rem; }
+
+.form-group {
+  display: flex; flex-direction: column; gap: .4rem;
+  label { font-size: .85rem; font-weight: 600; color: var(--color-primary); }
+  input {
+    padding: .7rem .85rem; border: 1px solid #c4cfcb; border-radius: 8px; font-size: .95rem;
+    &:focus { outline: 2px solid var(--color-gold); outline-offset: 1px; border-color: var(--color-gold); }
+  }
+}
+
+.login-error {
+  margin: 0; padding: .65rem .85rem; border-radius: 8px; font-size: .88rem;
+  color: #8a1c1c; background: #fdf0ef; border: 1px solid #f1c9c6;
+}
+
+.btn-submit {
+  padding: .8rem; border: 0; border-radius: 8px; background: var(--color-primary); color: #fff;
+  font-weight: 600; cursor: pointer;
+  &:hover:not(:disabled) { background: #1d3b36; }
+  &:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+}
+
+@media (max-width: 760px) {
+  .auth-page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .auth-brand { padding: 1.5rem; border-right: 0; border-bottom: 3px solid var(--color-gold); h2 { font-size: 1.4rem; } p { display: none; } }
+}

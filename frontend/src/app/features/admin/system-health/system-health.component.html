@@ -1,0 +1,193 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h1>Estado del sistema</h1>
+      <p class="subtitle">Monitoreo operativo: API, SQL Server, Worker y procesamiento de eventos (solo lectura)</p>
+    </div>
+    <div class="refresh-controls">
+      <label class="auto-refresh">
+        <input type="checkbox" [checked]="autoRefresh()" (change)="toggleAutoRefresh($any($event.target).checked)" />
+        Actualización automática cada {{ pollingSeconds }} s
+      </label>
+      <button type="button" class="btn btn-outline" (click)="refresh()" [disabled]="!isAdmin()">Actualizar</button>
+    </div>
+  </div>
+
+  <p class="last-success" role="status" aria-live="polite">
+    @if (lastSuccessAt(); as when) {
+      Última consulta exitosa: {{ when | appDate:'dd/MM/yyyy HH:mm:ss' }}
+      @if (isLoading()) { · actualizando… }
+    } @else {
+      Aún no hay una consulta exitosa.
+    }
+  </p>
+
+  @if (!health() && isLoading()) {
+    <app-state-message state="loading" message="Consultando el estado del sistema…" />
+  } @else if (!health() && error(); as failure) {
+    <app-state-message state="error" [message]="failure.message" [retryable]="canRetry()" (retry)="refresh()" />
+  } @else if (health(); as h) {
+    @if (error(); as failure) {
+      <p class="api-error" role="alert">
+        {{ failure.message }} Se muestran los datos de la última consulta exitosa.
+      </p>
+    }
+
+    <!-- Estado global -->
+    <section class="overall" [class.degraded]="h.status === 'Degraded'" aria-label="Estado global">
+      <span class="badge" [class]="'badge ' + tone(h.status)">{{ label(h.status) }}</span>
+      @if (h.status === 'Healthy') {
+        <span>Todos los componentes operan con normalidad.</span>
+      } @else {
+        <span>El sistema está degradado:</span>
+      }
+      @if (h.warnings.length > 0) {
+        <ul class="warnings">
+          @for (code of h.warnings; track code) { <li>{{ warning(code) }}</li> }
+        </ul>
+      }
+    </section>
+
+    <!-- Componentes -->
+    <section class="cards" aria-label="Componentes">
+      <article class="card">
+        <h2>API</h2>
+        <span class="badge" [class]="'badge ' + tone(h.api.status)">{{ label(h.api.status) }}</span>
+        <p class="muted">Versión {{ h.api.version }}</p>
+      </article>
+
+      <article class="card">
+        <h2>SQL Server</h2>
+        <span class="badge" [class]="'badge ' + tone(h.sqlServer.status)">{{ label(h.sqlServer.status) }}</span>
+        <p class="muted">
+          @if (h.sqlServer.latencyMs !== null) { Latencia: {{ h.sqlServer.latencyMs }} ms } @else { Latencia no disponible }
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>Worker</h2>
+        <span class="badge" [class]="'badge ' + tone(h.worker.status)">{{ label(h.worker.status) }}</span>
+        <p class="muted">
+          Procesamiento:
+          <span class="badge" [class]="'badge ' + tone(h.worker.processing)">{{ label(h.worker.processing) }}</span>
+        </p>
+        <p class="muted">Un latido solo indica que el proceso vive; no garantiza que los eventos se procesen.</p>
+      </article>
+    </section>
+
+    <!-- Instancias del Worker -->
+    <section class="content-card" aria-labelledby="workers-title">
+      <h2 id="workers-title">Instancias del Worker</h2>
+      @if (h.worker.instances === null) {
+        <app-state-message state="error" message="No disponible: SQL Server no respondió, no se conocen las instancias." />
+      } @else if (h.worker.instances.length === 0) {
+        <app-state-message state="empty" message="Ningún Worker ha registrado latidos."
+          hint="Sin información no se puede afirmar que el Worker esté detenido." />
+      } @else {
+        <div class="table-wrap">
+          <table class="data-table">
+            <caption class="sr-only">Instancias del Worker y su último latido (umbral {{ h.worker.heartbeatThresholdSeconds }} s)</caption>
+            <thead>
+              <tr>
+                <th scope="col">Instancia</th>
+                <th scope="col">Versión</th>
+                <th scope="col">Latido</th>
+                <th scope="col">Último latido</th>
+                <th scope="col">Procesamiento</th>
+                <th scope="col">Último ciclo correcto</th>
+                <th scope="col">Inicio</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (instance of h.worker.instances; track instance.instanceId) {
+                <tr>
+                  <td><code>{{ instance.instanceId.slice(0, 8) }}</code></td>
+                  <td>{{ instance.version }}</td>
+                  <td><span class="badge" [class]="'badge ' + tone(instance.status)">{{ label(instance.status) }}</span></td>
+                  <td>hace {{ duration(instance.secondsSinceLastSeen) ?? '—' }}</td>
+                  <td>
+                    <span class="badge" [class]="'badge ' + tone(instance.processing)">{{ label(instance.processing) }}</span>
+                    @if (instance.lastErrorType) { <small class="muted"> · {{ instance.lastErrorType }}</small> }
+                  </td>
+                  <td>{{ instance.lastSuccessfulCycleAtUtc ? (instance.lastSuccessfulCycleAtUtc | appDate:'dd/MM/yyyy HH:mm:ss') : '—' }}</td>
+                  <td>{{ instance.startedAtUtc | appDate }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <!-- Eventos del Outbox -->
+    <section class="content-card" aria-labelledby="events-title">
+      <h2 id="events-title">Eventos (Outbox)</h2>
+      @if (h.events === null) {
+        <app-state-message state="error" message="No disponible: no se pudieron consultar los eventos." />
+      } @else {
+        <dl class="metrics">
+          <div><dt>Pendientes</dt><dd>{{ h.events.pending }}</dd></div>
+          <div><dt>En procesamiento</dt><dd>{{ h.events.processing }}</dd></div>
+          <div><dt>Procesados</dt><dd>{{ h.events.processed }}</dd></div>
+          <div><dt>Fallidos</dt><dd>{{ h.events.failed }}</dd></div>
+          <div><dt>Leases vencidos</dt><dd>{{ h.events.expiredLeases }}</dd></div>
+          <div>
+            <dt>Pendiente más antiguo</dt>
+            <dd>
+              @if (h.events.oldestPendingAgeSeconds !== null) { {{ duration(h.events.oldestPendingAgeSeconds) }} } @else { Sin pendientes }
+            </dd>
+          </div>
+          <div>
+            <dt>Procesados (24 h)</dt>
+            <dd>@if (h.events.processedLast24Hours !== null) { {{ h.events.processedLast24Hours }} } @else { <span class="muted">No disponible</span> }</dd>
+          </div>
+          <div>
+            <dt>Fallidos (24 h)</dt>
+            <dd>@if (h.events.failedLast24Hours !== null) { {{ h.events.failedLast24Hours }} } @else { <span class="muted">No disponible</span> }</dd>
+          </div>
+        </dl>
+      }
+    </section>
+
+    <!-- Serie horaria -->
+    <section class="content-card" aria-labelledby="series-title">
+      <h2 id="series-title">Procesamiento por hora (últimas 24 h)</h2>
+      @if (h.seriesStatus === 'Available' && h.series) {
+        <figure class="chart">
+          <svg [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight" role="img" preserveAspectRatio="none"
+               aria-label="Eventos procesados y fallidos por hora; los mismos datos están en la tabla siguiente">
+            @for (bar of bars(); track bar.label) {
+              <rect class="bar-processed" [attr.x]="bar.x" [attr.y]="bar.processedY" [attr.width]="bar.width" [attr.height]="bar.processedHeight">
+                <title>{{ bar.label | appDate:'dd/MM HH:mm' }}: {{ bar.processed }} procesados, {{ bar.failed }} fallidos</title>
+              </rect>
+              <rect class="bar-failed" [attr.x]="bar.x" [attr.y]="bar.failedY" [attr.width]="bar.width" [attr.height]="bar.failedHeight"></rect>
+            }
+          </svg>
+          <figcaption class="legend">
+            <span><i class="swatch processed"></i> Procesados</span>
+            <span><i class="swatch failed"></i> Fallidos</span>
+          </figcaption>
+        </figure>
+        <details>
+          <summary>Ver datos de la serie</summary>
+          <div class="table-wrap">
+            <table class="data-table">
+              <caption class="sr-only">Eventos por hora</caption>
+              <thead><tr><th scope="col">Hora</th><th scope="col" class="num">Procesados</th><th scope="col" class="num">Fallidos</th></tr></thead>
+              <tbody>
+                @for (point of h.series.points; track point.bucketStartUtc) {
+                  <tr><td>{{ point.bucketStartUtc | appDate:'dd/MM HH:mm' }}</td><td class="num">{{ point.processed }}</td><td class="num">{{ point.failed }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </details>
+      } @else if (h.seriesStatus === 'InsufficientData') {
+        <app-state-message state="empty" message="Aún no hay datos suficientes para mostrar la serie horaria."
+          hint="Se muestra cuando hay actividad persistida en varias horas distintas." />
+      } @else {
+        <app-state-message state="error" message="No disponible: no se pudo consultar la serie horaria." />
+      }
+    </section>
+  }
+</div>

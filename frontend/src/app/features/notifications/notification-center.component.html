@@ -1,0 +1,78 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h1>Notificaciones</h1>
+      <p class="subtitle">Alertas de stock bajo y productos agotados</p>
+    </div>
+    <button type="button" class="btn btn-outline" (click)="markAllAsRead()">Marcar todas como leídas</button>
+  </div>
+
+  @if (actionError()) { <p class="api-error" role="alert">{{ actionError() }}</p> }
+  @if (notice()) { <p class="api-success" role="status">{{ notice() }}</p> }
+
+  <div class="content-card">
+    <form class="filter-row" (ngSubmit)="applyFilters()" role="search">
+      <label>Estado
+        <select name="read" [ngModel]="readFilter()" (ngModelChange)="readFilter.set($event)">
+          <option value="all">Todas</option>
+          <option value="unread">Sin leer</option>
+          <option value="read">Leídas</option>
+        </select>
+      </label>
+      <label>Tipo
+        <select name="type" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)">
+          <option value="">Todos</option>
+          <option value="LowStock">Stock bajo</option>
+          <option value="OutOfStock">Agotado</option>
+        </select>
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+      @if (hasFilters()) {
+        <button class="btn btn-outline" type="button" (click)="clearFilters()">Limpiar</button>
+      }
+    </form>
+
+    @if (isLoading()) {
+      <app-state-message state="loading" message="Cargando notificaciones…" />
+    } @else if (loadError()) {
+      <app-state-message state="error" [message]="loadError()" [retryable]="true" (retry)="load()" />
+    } @else if (items().length === 0) {
+      <app-state-message state="empty"
+        [message]="hasFilters() ? 'Ninguna notificación coincide con los filtros.' : 'No tienes notificaciones.'"
+        hint="Las alertas de stock se generan automáticamente al registrar ventas." />
+    } @else {
+      <ul class="notification-list" aria-label="Lista de notificaciones">
+        @for (notification of items(); track notification.id) {
+          <li class="notification" [class.unread]="!notification.isRead">
+            <div class="body">
+              <div class="head">
+                <span class="badge" [class.type-out]="notification.type === 'OutOfStock'" [class.type-low]="notification.type === 'LowStock'">
+                  {{ typeLabel(notification.type) }}
+                </span>
+                @if (!notification.isRead) { <span class="unread-dot" aria-hidden="true"></span><span class="sr-only">Sin leer</span> }
+                <time class="when" [attr.datetime]="notification.createdAtUtc">{{ notification.createdAtUtc | appDate }}</time>
+              </div>
+              <strong>{{ notification.title }}</strong>
+              <p>{{ notification.message }}</p>
+              <small>Stock actual: {{ notification.currentStock }} · Mínimo: {{ notification.minimumStock }}</small>
+            </div>
+            <div class="actions">
+              <a class="btn btn-outline" routerLink="/products">Ver productos</a>
+              @if (!notification.isRead) {
+                <button class="btn btn-primary" type="button" (click)="markAsRead(notification)">Marcar como leída</button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (totalPages() > 1) {
+        <nav class="pagination" aria-label="Paginación de notificaciones">
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() - 1)" [disabled]="pageNumber() <= 1">Anterior</button>
+          <span aria-live="polite">Página {{ pageNumber() }} de {{ totalPages() }} ({{ totalItems() }} notificaciones)</span>
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() + 1)" [disabled]="pageNumber() >= totalPages()">Siguiente</button>
+        </nav>
+      }
+    }
+  </div>
+</div>

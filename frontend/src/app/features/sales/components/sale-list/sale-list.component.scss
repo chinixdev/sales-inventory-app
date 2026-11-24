@@ -1,0 +1,58 @@
+/* Página, tarjetas, formularios y tablas: ver src/styles.scss */
+
+.sale-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) minmax(320px, 3fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.search-row {
+  display: flex; gap: .5rem; margin-bottom: .75rem;
+  input {
+    flex: 1; min-width: 0; min-height: var(--control-height); padding: .5rem .7rem;
+    border: 1px solid var(--color-border-strong); border-radius: 6px;
+    &:focus-visible { border-color: var(--color-gold); outline-offset: 0; }
+  }
+}
+
+.product-list {
+  list-style: none; margin: 0; padding: 0; max-height: 380px; overflow-y: auto;
+  border: 1px solid var(--color-border); border-radius: 8px;
+
+  li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .6rem .8rem; border-bottom: 1px solid var(--color-border); }
+  li:last-child { border-bottom: 0; }
+  .btn { flex: none; }
+}
+
+.product-info { display: grid; gap: .1rem; min-width: 0; strong { overflow-wrap: anywhere; } small { color: var(--color-text-muted); } }
+
+.cart {
+  padding: 1rem; border: 1px dashed var(--color-gold); border-radius: 8px; background: #fbf9f4; min-width: 0;
+  .form-actions { margin-top: 1rem; }
+}
+
+.cart-table { min-width: 520px; }
+
+.qty {
+  width: 5.5rem; min-height: var(--control-height); padding: .4rem .5rem;
+  border: 1px solid var(--color-border-strong); border-radius: 6px;
+  &:focus-visible { border-color: var(--color-gold); outline-offset: 0; }
+  &[aria-invalid='true'] { border-color: var(--color-danger); }
+}
+
+.muted { color: var(--color-text-muted); }
+.total { font-weight: 700; color: var(--color-primary); }
+tfoot th, tfoot td { background: #f1f4f3; }
+
+.sale-summary {
+  border-left: 4px solid var(--color-gold);
+  .summary-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; h2 { margin: 0; } }
+  .meta { color: var(--color-text-muted); margin: .25rem 0 1rem; font-size: .9rem; }
+}
+
+.detail-panel ul { padding-left: 1.1rem; }
+
+@media (max-width: 900px) {
+  .sale-grid { grid-template-columns: 1fr; }
+}

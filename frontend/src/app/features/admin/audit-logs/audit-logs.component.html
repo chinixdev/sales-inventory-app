@@ -1,0 +1,171 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h1>Auditoría</h1>
+      <p class="subtitle">Registro de cambios en productos, categorías, ventas, inventario y usuarios (solo lectura)</p>
+    </div>
+    <button type="button" class="btn btn-outline" (click)="loadLogs()">Actualizar</button>
+  </div>
+
+  <div class="content-card">
+    <form class="filter-row" (ngSubmit)="applyFilters()" role="search" aria-label="Filtros de auditoría">
+      <label>Entidad
+        <select name="entity" [ngModel]="entityFilter()" (ngModelChange)="entityFilter.set($event)">
+          <option value="">Todas</option>
+          @for (entity of entities; track entity) { <option [value]="entity">{{ entity }}</option> }
+        </select>
+      </label>
+      <label>Acción
+        <select name="action" [ngModel]="actionFilter()" (ngModelChange)="actionFilter.set($event)">
+          <option value="">Todas</option>
+          @for (action of actions; track action) { <option [value]="action">{{ action }}</option> }
+        </select>
+      </label>
+      <label>Usuario (Id)
+        <input name="user" inputmode="numeric" placeholder="Ej. 1" [ngModel]="userFilter()" (ngModelChange)="userFilter.set($event)" />
+      </label>
+      <label>Desde
+        <input name="from" type="date" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event)" />
+      </label>
+      <label>Hasta
+        <input name="to" type="date" [ngModel]="toDate()" (ngModelChange)="toDate.set($event)" />
+      </label>
+      <label>CorrelationId
+        <input name="correlation" maxlength="64" [ngModel]="correlationFilter()" (ngModelChange)="correlationFilter.set($event)" />
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+      @if (hasFilters()) {
+        <button class="btn btn-outline" type="button" (click)="clearFilters()">Limpiar</button>
+      }
+    </form>
+    @if (filterError()) { <p class="api-error" role="alert">{{ filterError() }}</p> }
+
+    @if (isLoading()) {
+      <app-state-message state="loading" message="Cargando auditoría…" />
+    } @else if (loadError(); as error) {
+      <app-state-message state="error" [message]="error.message"
+        [retryable]="error.status !== 401 && error.status !== 403" (retry)="loadLogs()" />
+    } @else if (logs().length === 0) {
+      <app-state-message state="empty"
+        [message]="hasFilters() ? 'Ningún registro coincide con los filtros.' : 'Aún no hay registros de auditoría.'" />
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">Registros de auditoría, del más reciente al más antiguo</caption>
+          <thead>
+            <tr>
+              <th scope="col">Fecha</th>
+              <th scope="col">Entidad</th>
+              <th scope="col">Identificador</th>
+              <th scope="col">Acción</th>
+              <th scope="col">Actor</th>
+              <th scope="col">Origen</th>
+              <th scope="col"><span class="sr-only">Detalle</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (log of logs(); track log.id) {
+              <tr>
+                <td>{{ log.occurredAtUtc | appDate:'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td>{{ log.entityName }}</td>
+                <td><code>{{ log.entityId }}</code></td>
+                <td><span class="badge" [class]="'badge ' + actionClass(log.action)">{{ log.action }}</span></td>
+                <td>{{ actor(log) }}</td>
+                <td>{{ log.source }}</td>
+                <td class="table-actions">
+                  <button class="btn btn-outline" type="button" (click)="openDetail(log.id, $event)"
+                          [attr.aria-label]="'Ver detalle del registro ' + log.id + ': ' + log.action + ' en ' + log.entityName + ' ' + log.entityId">Detalle</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages() > 1) {
+        <nav class="pagination" aria-label="Paginación de auditoría">
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() - 1)" [disabled]="pageNumber() <= 1">Anterior</button>
+          <span aria-live="polite">Página {{ pageNumber() }} de {{ totalPages() }} ({{ totalItems() }} registros)</span>
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() + 1)" [disabled]="pageNumber() >= totalPages()">Siguiente</button>
+        </nav>
+      } @else {
+        <p class="muted total">{{ totalItems() }} registro(s)</p>
+      }
+    }
+  </div>
+</div>
+
+@if (detailOpen()) {
+  <div class="overlay" (click)="closeDetail()"></div>
+  <aside #panel class="side-panel" role="dialog" aria-modal="true" aria-labelledby="audit-detail-title" tabindex="-1" (keydown)="trapFocus($event)">
+    <header>
+      <h2 id="audit-detail-title">Detalle de auditoría</h2>
+      <button type="button" class="btn btn-outline" (click)="closeDetail()">Cerrar</button>
+    </header>
+
+    @if (detailLoading()) {
+      <app-state-message state="loading" message="Cargando detalle…" />
+    } @else if (detailError(); as error) {
+      <app-state-message state="error" [message]="error.message" />
+    } @else if (detail(); as d) {
+      <dl class="detail-grid">
+        <div><dt>Registro</dt><dd>#{{ d.id }}</dd></div>
+        <div><dt>Fecha</dt><dd>{{ d.occurredAtUtc | appDate:'dd/MM/yyyy HH:mm:ss' }}</dd></div>
+        <div><dt>Entidad</dt><dd>{{ d.entityName }}</dd></div>
+        <div><dt>Identificador</dt><dd><code>{{ d.entityId }}</code></dd></div>
+        <div><dt>Acción</dt><dd><span class="badge" [class]="'badge ' + actionClass(d.action)">{{ d.action }}</span></dd></div>
+        <div><dt>Actor</dt><dd>{{ actor(d) }}</dd></div>
+        <div><dt>Origen</dt><dd>{{ d.source }}</dd></div>
+        <div class="wide">
+          <dt>CorrelationId</dt>
+          <dd class="correlation">
+            <code>{{ d.correlationId }}</code>
+            <button type="button" class="btn btn-outline" (click)="copyCorrelation(d.correlationId)">Copiar</button>
+            <button type="button" class="btn btn-outline" (click)="filterByCorrelation(d.correlationId)">Ver operación</button>
+          </dd>
+        </div>
+      </dl>
+      <p class="copy-notice" role="status" aria-live="polite">{{ copyNotice() }}</p>
+
+      <h3>
+        @switch (d.action) {
+          @case ('INSERT') { Valores creados }
+          @case ('DELETE') { Valores eliminados }
+          @default { Comparación de valores }
+        }
+      </h3>
+      @if (valueRows().length === 0) {
+        <p class="muted">Este registro no contiene valores.</p>
+      } @else {
+        <div class="table-wrap">
+          <table class="data-table values-table">
+            <caption class="sr-only">Valores anteriores y nuevos; los campos modificados aparecen resaltados</caption>
+            <thead>
+              <tr>
+                <th scope="col">Campo</th>
+                @if (d.action !== 'INSERT') { <th scope="col">Anterior</th> }
+                @if (d.action !== 'DELETE') { <th scope="col">Nuevo</th> }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of valueRows(); track row.field) {
+                <tr [class.changed]="row.changed">
+                  <th scope="row">
+                    {{ row.field }}
+                    @if (row.changed) { <span class="badge badge-changed">modificado</span> }
+                  </th>
+                  @if (d.action !== 'INSERT') {
+                    <td class="old">@if (row.oldValue === null) { <em class="null">sin valor</em> } @else { {{ row.oldValue }} }</td>
+                  }
+                  @if (d.action !== 'DELETE') {
+                    <td class="new">@if (row.newValue === null) { <em class="null">sin valor</em> } @else { {{ row.newValue }} }</td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </aside>
+}

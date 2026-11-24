@@ -1,0 +1,40 @@
+.indicators {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: .5rem;
+}
+
+.indicator {
+  display: grid; gap: .15rem; text-align: left; padding: 1rem 1.25rem; cursor: pointer;
+  background: #fff; border: 1px solid var(--color-border); border-top: 3px solid var(--color-border);
+  border-radius: 10px; color: var(--color-text);
+  transition: border-color .15s ease, box-shadow .15s ease;
+
+  &:hover { box-shadow: 0 2px 8px rgba(21, 44, 40, .08); }
+  &[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--color-gold); }
+  .value { font-size: 1.8rem; font-weight: 700; color: var(--color-primary); font-variant-numeric: tabular-nums; }
+  .label { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); }
+  .hint { font-size: .75rem; color: #a32626; }
+
+  &.status-pending { border-top-color: var(--color-gold); }
+  &.status-processing { border-top-color: #4a6f9c; }
+  &.status-processed { border-top-color: #2e8b57; }
+  &.status-failed { border-top-color: #a32626; }
+}
+
+.oldest { margin: 0 0 1rem; font-size: .85rem; color: var(--color-text-muted); }
+
+.badge.status-pending { background: #f4eddc; color: #6b5527; }
+.badge.status-processing { background: #e4ecf6; color: #2f4f7a; }
+.badge.status-processed { background: #e3f1ea; color: #1d5b3c; }
+.badge.status-failed { background: #fdeceb; color: #8a1c1c; }
+
+.error-cell { max-width: 260px; overflow-wrap: anywhere; font-size: .82rem; color: var(--color-text-muted); }
+
+.detail-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem 1.5rem; margin: 0 0 1rem;
+  div { display: grid; gap: .1rem; }
+  dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); }
+  dd { margin: 0; }
+}
+
+.detail-error { padding: .6rem .8rem; border-radius: 6px; background: #fdf0ef; color: #8a1c1c; overflow-wrap: anywhere; }
+.muted { color: var(--color-text-muted); font-size: .85rem; }

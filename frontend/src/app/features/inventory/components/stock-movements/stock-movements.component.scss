@@ -1,0 +1,40 @@
+/* Página, tarjetas, formularios y tablas: ver src/styles.scss */
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  width: fit-content;
+  max-width: 100%;
+
+  button {
+    min-height: var(--control-height);
+    padding: .5rem 1rem;
+    border: 0;
+    background: #fff;
+    color: var(--color-text);
+    cursor: pointer;
+
+    &:hover:not(.active) { background: #fbf9f4; }
+    &.active { background: var(--color-primary); color: #fff; box-shadow: inset 0 -3px 0 var(--color-gold); }
+  }
+}
+
+.stock-box {
+  display: flex; flex-direction: column; justify-content: center; gap: .15rem;
+  padding: .6rem .9rem; border: 1px dashed var(--color-gold); border-radius: 8px; background: #fbf9f4;
+  min-height: 64px;
+
+  .stock-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: #6b5527; }
+  .stock-value { font-size: 1.5rem; font-weight: 700; color: var(--color-primary); &.low { color: var(--color-danger); } &.muted { color: var(--color-text-muted); font-size: 1rem; font-weight: 400; } }
+}
+
+.type-in { background: #e3f1ea; color: #1d5b3c; }
+.type-out { background: #fdeceb; color: #8a1c1c; }
+.type-adjustment { background: #f4eddc; color: #6b5527; }
+
+@media (max-width: 520px) {
+  .segmented { width: 100%; button { flex: 1 1 100%; } }
+}

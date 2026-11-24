@@ -1,0 +1,174 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h1>Productos</h1>
+      <p class="subtitle">SKU, precios, categorías y niveles de stock</p>
+    </div>
+    @if (canWrite()) {
+      <button class="btn btn-primary" type="button" (click)="startCreate()">Nuevo producto</button>
+    }
+  </div>
+
+  @if (actionError()) { <p class="api-error" role="alert">{{ actionError() }}</p> }
+  @if (successMessage()) { <p class="api-success" role="status">{{ successMessage() }}</p> }
+  @if (!canWrite()) {
+    <p class="form-hint">Tu rol permite consultar el catálogo, pero no modificarlo.</p>
+  }
+
+  @if (showForm() && canWrite()) {
+    <form #productForm="ngForm" class="content-card operation-form" (ngSubmit)="save()" aria-labelledby="product-form-title">
+      <h2 id="product-form-title">{{ editingProductId() === null ? 'Nuevo producto' : 'Editar producto' }}</h2>
+      <div class="form-grid">
+        <label>Categoría
+          <select name="categoryId" [(ngModel)]="form.categoryId" required>
+            <option [ngValue]="null" disabled>Selecciona una categoría</option>
+            @for (category of categories(); track category.id) {
+              <option [ngValue]="category.id">{{ category.name }}</option>
+            }
+          </select>
+        </label>
+        <label>SKU
+          <input name="sku" [(ngModel)]="form.sku" required minlength="3" maxlength="40" #sku="ngModel" />
+          @if (sku.invalid && sku.touched) { <small class="field-error">Entre 3 y 40 caracteres.</small> }
+        </label>
+        <label>Nombre
+          <input name="name" [(ngModel)]="form.name" required minlength="2" maxlength="150" #pname="ngModel" />
+          @if (pname.invalid && pname.touched) { <small class="field-error">Entre 2 y 150 caracteres.</small> }
+        </label>
+        <label>Precio
+          <input name="price" type="number" [(ngModel)]="form.price" required min="0.01" step="0.01" #price="ngModel" />
+          @if (price.invalid && price.touched) { <small class="field-error">Debe ser mayor a 0.</small> }
+        </label>
+        <label>Stock mínimo
+          <input name="minimumStock" type="number" [(ngModel)]="form.minimumStock" required min="0" step="1" />
+        </label>
+        @if (editingProductId() === null) {
+          <label>Stock inicial
+            <input name="initialStock" type="number" [(ngModel)]="form.initialStock" required min="0" step="1" />
+          </label>
+        }
+        <label class="form-grid-wide">Descripción (opcional)
+          <textarea name="description" [(ngModel)]="form.description" maxlength="500" rows="2"></textarea>
+        </label>
+        @if (editingProductId() !== null) {
+          <label class="checkbox-field">
+            <input type="checkbox" name="isActive" [(ngModel)]="form.isActive" />
+            Activo
+          </label>
+        }
+      </div>
+      @if (editingProductId() !== null) {
+        <p class="form-hint">El stock no se cambia desde esta edición.</p>
+      }
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit" [disabled]="productForm.invalid || isSaving() || categories().length === 0">
+          {{ isSaving() ? 'Guardando…' : 'Guardar' }}
+        </button>
+        <button class="btn btn-outline" type="button" (click)="cancelForm()">Cancelar</button>
+      </div>
+    </form>
+  }
+
+  <div class="content-card">
+    <form class="filter-row" (ngSubmit)="applyFilters()" role="search">
+      <label>Buscar
+        <input name="searchTerm" [(ngModel)]="searchTerm" placeholder="SKU o nombre" />
+      </label>
+      <label>Categoría
+        <select name="categoryFilter" [(ngModel)]="categoryFilter">
+          <option [ngValue]="null">Todas</option>
+          @for (category of categories(); track category.id) {
+            <option [ngValue]="category.id">{{ category.name }}</option>
+          }
+        </select>
+      </label>
+      <label>Estado
+        <select name="activeOnly" [(ngModel)]="activeOnly">
+          <option [ngValue]="null">Todos</option>
+          <option [ngValue]="true">Activos</option>
+          <option [ngValue]="false">Inactivos</option>
+        </select>
+      </label>
+      <label class="checkbox-field">
+        <input type="checkbox" name="lowStockOnly" [(ngModel)]="lowStockOnly" />
+        Stock bajo
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+      @if (hasActiveFilters()) {
+        <button class="btn btn-outline" type="button" (click)="clearFilters()">Limpiar</button>
+      }
+    </form>
+
+    @if (isLoading()) {
+      <app-state-message state="loading" message="Cargando productos…" />
+    } @else if (loadError()) {
+      <app-state-message state="error" [message]="loadError()" [retryable]="true" (retry)="loadProducts()" />
+    } @else if (products().length === 0) {
+      <app-state-message state="empty"
+        [message]="hasActiveFilters() ? 'Ningún producto coincide con los filtros.' : 'No hay productos registrados.'"
+        [hint]="canWrite() && !hasActiveFilters() ? 'Usa «Nuevo producto» para crear el primero.' : ''" />
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">Listado de productos</caption>
+          <thead>
+            <tr>
+              <th scope="col">SKU</th>
+              <th scope="col">Nombre</th>
+              <th scope="col">Categoría</th>
+              <th scope="col" class="num">Precio</th>
+              <th scope="col" class="num">Stock</th>
+              <th scope="col" class="num">Mínimo</th>
+              <th scope="col">Estado</th>
+              @if (canWrite()) { <th scope="col">Acciones</th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (product of products(); track product.id) {
+              <tr>
+                <td><code>{{ product.sku }}</code></td>
+                <td>{{ product.name }}</td>
+                <td>{{ product.categoryName || '—' }}</td>
+                <td class="num">{{ product.price | pen }}</td>
+                <td class="num">
+                  <span [class.stock-low]="product.isBelowMinimumStock">{{ product.stock }}</span>
+                  @if (product.isBelowMinimumStock) { <span class="sr-only"> (bajo el mínimo)</span> }
+                </td>
+                <td class="num">{{ product.minimumStock }}</td>
+                <td>
+                  <span class="badge" [class.badge-active]="product.isActive" [class.badge-inactive]="!product.isActive">
+                    {{ product.isActive ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                @if (canWrite()) {
+                  <td class="table-actions">
+                    <button class="btn btn-outline" type="button" (click)="edit(product)"
+                            [attr.aria-label]="'Editar ' + product.name">Editar</button>
+                    <button class="btn btn-danger" type="button" (click)="requestDelete(product)"
+                            [attr.aria-label]="'Eliminar ' + product.name">Eliminar</button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages() > 1) {
+        <nav class="pagination" aria-label="Paginación de productos">
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() - 1)" [disabled]="pageNumber() <= 1">Anterior</button>
+          <span aria-live="polite">Página {{ pageNumber() }} de {{ totalPages() }} ({{ totalItems() }} productos)</span>
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() + 1)" [disabled]="pageNumber() >= totalPages()">Siguiente</button>
+        </nav>
+      }
+    }
+  </div>
+</div>
+
+<app-confirm-dialog
+  [open]="pendingDelete() !== null"
+  title="Eliminar producto"
+  [message]="'¿Eliminar «' + (pendingDelete()?.name ?? '') + '»? Si tiene movimientos de inventario se desactivará en lugar de borrarse.'"
+  confirmLabel="Eliminar"
+  (confirmed)="confirmDelete()"
+  (cancelled)="pendingDelete.set(null)" />

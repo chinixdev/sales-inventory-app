@@ -1,0 +1,157 @@
+<div class="feature-page">
+  <div class="page-header">
+    <div>
+      <h1>Inventario</h1>
+      <p class="subtitle">Movimientos de stock: entradas, salidas por venta y ajustes</p>
+    </div>
+  </div>
+
+  @if (actionError()) { <p class="api-error" role="alert">{{ actionError() }}</p> }
+  @if (successMessage()) { <p class="api-success" role="status">{{ successMessage() }}</p> }
+  @if (!canWrite()) {
+    <p class="form-hint">Tu rol permite consultar los movimientos, pero no registrar entradas ni ajustes.</p>
+  }
+
+  @if (canWrite()) {
+    <form #movementForm="ngForm" class="content-card operation-form" (ngSubmit)="submit()" aria-labelledby="movement-title">
+      <h2 id="movement-title">Registrar movimiento</h2>
+
+      <div class="segmented" role="group" aria-label="Tipo de movimiento">
+        <button type="button" [class.active]="operation() === 'entry'" [attr.aria-pressed]="operation() === 'entry'"
+                (click)="setOperation('entry')">Entrada de stock</button>
+        <button type="button" [class.active]="operation() === 'adjustment'" [attr.aria-pressed]="operation() === 'adjustment'"
+                (click)="setOperation('adjustment')">Ajuste a stock final</button>
+      </div>
+
+      <div class="form-grid">
+        <label>Producto
+          <select name="productId" [ngModel]="productId()" (ngModelChange)="onProductChange($event)" required>
+            <option [ngValue]="null" disabled>Selecciona un producto</option>
+            @for (product of products(); track product.id) {
+              <option [ngValue]="product.id">{{ product.sku }} — {{ product.name }}</option>
+            }
+          </select>
+        </label>
+
+        <div class="stock-box" aria-live="polite">
+          <span class="stock-label">Stock actual</span>
+          @if (isCheckingStock()) {
+            <span class="stock-value muted">Consultando…</span>
+          } @else if (currentProduct(); as product) {
+            <span class="stock-value" [class.low]="product.isBelowMinimumStock">{{ product.stock }}</span>
+            <small>Mínimo: {{ product.minimumStock }}</small>
+          } @else {
+            <span class="stock-value muted">—</span>
+          }
+        </div>
+
+        @if (operation() === 'entry') {
+          <label>Cantidad a ingresar
+            <input name="quantity" type="number" [ngModel]="quantity()" (ngModelChange)="quantity.set($event)"
+                   required min="1" step="1" #qty="ngModel" />
+            @if (qty.invalid && qty.touched) { <small class="field-error">Debe ser un entero mayor a 0.</small> }
+          </label>
+        } @else {
+          <label>Stock final
+            <input name="newStock" type="number" [ngModel]="newStock()" (ngModelChange)="newStock.set($event)"
+                   required min="0" step="1" #final="ngModel" />
+            @if (final.invalid && final.touched) { <small class="field-error">Debe ser un entero de 0 o más.</small> }
+            @if (currentProduct() && newStock() === currentProduct()!.stock) {
+              <small class="field-error">Es igual al stock actual; no hay ajuste que realizar.</small>
+            }
+          </label>
+        }
+
+        <label class="form-grid-wide">Motivo
+          <input name="reason" [ngModel]="reason()" (ngModelChange)="reason.set($event)"
+                 required minlength="3" maxlength="300" #why="ngModel" />
+          @if (why.invalid && why.touched) { <small class="field-error">Entre 3 y 300 caracteres.</small> }
+        </label>
+      </div>
+
+      <p class="form-hint">El usuario responsable se toma de tu sesión autenticada.</p>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit"
+                [disabled]="movementForm.invalid || isSaving() || isCheckingStock() || products().length === 0
+                  || (operation() === 'adjustment' && newStock() === currentProduct()?.stock)">
+          {{ isSaving() ? 'Registrando…' : operation() === 'entry' ? 'Registrar entrada' : 'Revisar ajuste' }}
+        </button>
+      </div>
+    </form>
+  }
+
+  <div class="content-card">
+    <form class="filter-row" (ngSubmit)="applyFilter()" role="search">
+      <label>Filtrar por producto
+        <select name="productFilter" [ngModel]="productFilter()" (ngModelChange)="productFilter.set($event)">
+          <option [ngValue]="null">Todos</option>
+          @for (product of products(); track product.id) {
+            <option [ngValue]="product.id">{{ product.sku }} — {{ product.name }}</option>
+          }
+        </select>
+      </label>
+      <button class="btn btn-outline" type="submit">Filtrar</button>
+      @if (productFilter() !== null) {
+        <button class="btn btn-outline" type="button" (click)="clearFilter()">Limpiar</button>
+      }
+    </form>
+
+    @if (isLoading()) {
+      <app-state-message state="loading" message="Cargando movimientos…" />
+    } @else if (loadError()) {
+      <app-state-message state="error" [message]="loadError()" [retryable]="true" (retry)="loadMovements()" />
+    } @else if (movements().length === 0) {
+      <app-state-message state="empty"
+        [message]="productFilter() !== null ? 'Este producto no tiene movimientos.' : 'No hay movimientos registrados.'"
+        hint="Las ventas, entradas y ajustes generan movimientos de forma automática." />
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="sr-only">Movimientos de inventario</caption>
+          <thead>
+            <tr>
+              <th scope="col">Fecha</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Producto</th>
+              <th scope="col" class="num">Cantidad</th>
+              <th scope="col" class="num">Stock</th>
+              <th scope="col">Usuario</th>
+              <th scope="col">Motivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (movement of movements(); track movement.id) {
+              <tr>
+                <td>{{ movement.createdAt | appDate }}</td>
+                <td>
+                  <span class="badge type-{{ movement.movementType.toLowerCase() }}">{{ typeLabel(movement.movementType) }}</span>
+                </td>
+                <td>{{ movement.productSKU }} — {{ movement.productName }}</td>
+                <td class="num">{{ movement.quantity }}</td>
+                <td class="num">{{ movement.previousStock }} → {{ movement.newStock }}</td>
+                <td>{{ movement.userFullName || movement.userId }}</td>
+                <td>{{ movement.reason }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages() > 1) {
+        <nav class="pagination" aria-label="Paginación de movimientos">
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() - 1)" [disabled]="pageNumber() <= 1">Anterior</button>
+          <span aria-live="polite">Página {{ pageNumber() }} de {{ totalPages() }} ({{ totalItems() }} movimientos)</span>
+          <button class="btn btn-outline" type="button" (click)="changePage(pageNumber() + 1)" [disabled]="pageNumber() >= totalPages()">Siguiente</button>
+        </nav>
+      }
+    }
+  </div>
+</div>
+
+<app-confirm-dialog
+  [open]="confirmingAdjustment()"
+  title="Confirmar ajuste de stock"
+  [message]="adjustmentMessage() + ' Esta operación quedará registrada en el historial.'"
+  confirmLabel="Confirmar ajuste"
+  (confirmed)="confirmAdjustment()"
+  (cancelled)="confirmingAdjustment.set(false)" />

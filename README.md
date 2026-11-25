@@ -118,7 +118,7 @@ backend/
   SalesInventory.sln
   src/  Domain, Application, Infrastructure, Api, Worker
   tests/ UnitTests, IntegrationTests
-frontend/            Angular SPA (core, features, shared, layout)
+frontend/            Angular SPA (core, features, shared, layout; testing = shared test helpers)
 tests/performance/   k6 scripts
 database/            reference SQL script (EF migrations are the source of truth)
 docs/                architecture, business rules, database design, API, local setup

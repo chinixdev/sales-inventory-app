@@ -12,6 +12,7 @@ import { HealthApiService } from '../../core/services/health-api.service';
 import { getApiErrorMessage } from '../../core/models/api-response.model';
 import { Product } from '../products/models/product.model';
 import { Sale } from '../sales/models/sale.model';
+import { toUtcWallClock } from '../../core/utils/date-range';
 
 const PAGE_SIZE = 100;
 /** Máximo de páginas que se consolidan; más allá los totales no se consideran verificables. */
@@ -66,11 +67,6 @@ function dayKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
-}
-
-/** Hora UTC (sin sufijo Z) del instante dado: el backend guarda SaleDate en UTC y evita conversiones de zona. */
-function toUtcWallClock(date: Date): string {
-  return date.toISOString().slice(0, 23);
 }
 
 @Component({

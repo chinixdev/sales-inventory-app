@@ -11,7 +11,6 @@ public class StockMovementBalanceTests
     [Fact]
     public void ValidateBalance_ForIncomingMovement_WhenCalculationsMatch_ShouldSucceed()
     {
-        // Arrange
         var movement = new StockMovement
         {
             ProductId = 1,
@@ -23,17 +22,14 @@ public class StockMovementBalanceTests
             Reason = "Recepcion de orden de compra"
         };
 
-        // Act
         var act = () => movement.ValidateBalance();
 
-        // Assert
         act.Should().NotThrow();
     }
 
     [Fact]
     public void ValidateBalance_ForOutgoingMovement_WhenCalculationsMatch_ShouldSucceed()
     {
-        // Arrange
         var movement = new StockMovement
         {
             ProductId = 1,
@@ -46,17 +42,14 @@ public class StockMovementBalanceTests
             Reason = "Venta #100"
         };
 
-        // Act
         var act = () => movement.ValidateBalance();
 
-        // Assert
         act.Should().NotThrow();
     }
 
     [Fact]
     public void ValidateBalance_ForAdjustmentMovement_WhenCalculationsMatch_ShouldSucceed()
     {
-        // Arrange
         var movement = new StockMovement
         {
             ProductId = 1,
@@ -68,17 +61,14 @@ public class StockMovementBalanceTests
             Reason = "Ajuste por conteo ciclico"
         };
 
-        // Act
         var act = () => movement.ValidateBalance();
 
-        // Assert
         act.Should().NotThrow();
     }
 
     [Fact]
     public void ValidateBalance_WhenBalanceFormulaIsViolated_ShouldThrowDomainException()
     {
-        // Arrange
         var movement = new StockMovement
         {
             ProductId = 1,
@@ -90,10 +80,8 @@ public class StockMovementBalanceTests
             Reason = "Calculo erroneo"
         };
 
-        // Act
         var act = () => movement.ValidateBalance();
 
-        // Assert
         act.Should().Throw<DomainException>()
             .WithMessage("*NewStock debe ser igual a PreviousStock + Quantity*");
     }
@@ -101,7 +89,6 @@ public class StockMovementBalanceTests
     [Fact]
     public void ValidateBalance_WhenSaleIdProvidedForNonOutMovement_ShouldThrowDomainException()
     {
-        // Arrange
         var movement = new StockMovement
         {
             ProductId = 1,
@@ -114,10 +101,8 @@ public class StockMovementBalanceTests
             Reason = "Error de asociacion de venta"
         };
 
-        // Act
         var act = () => movement.ValidateBalance();
 
-        // Assert
         act.Should().Throw<DomainException>()
             .WithMessage("*asociado a una venta solo puede ser de tipo OUT*");
     }

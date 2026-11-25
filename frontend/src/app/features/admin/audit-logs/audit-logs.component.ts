@@ -9,11 +9,7 @@ import { StateMessageComponent } from '../../../shared/components/state-message/
 import { ScrollRegionDirective } from '../../../shared/directives/scroll-region.directive';
 import { AppDatePipe } from '../../../shared/pipes/app-date.pipe';
 import { ValueRow, buildValueRows } from './audit-values';
-
-/** Hora UTC (sin «Z») del instante local indicado, igual que el resto de filtros de fecha de la aplicación. */
-function toUtcWallClock(localDateTime: string): string {
-  return new Date(localDateTime).toISOString().slice(0, 23);
-}
+import { toUtcWallClock } from '../../../core/utils/date-range';
 
 interface ViewError {
   status: number;

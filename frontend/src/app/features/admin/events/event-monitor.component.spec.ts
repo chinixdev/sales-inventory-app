@@ -4,11 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router, provideRouter } from '@angular/router';
 import { roleGuard } from '../../../core/guards/auth.guard';
 import { EventMonitorComponent } from './event-monitor.component';
-
-function tokenFor(role: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ role, nameid: '1', exp: Math.floor(Date.now() / 1000) + 600 })}.sig`;
-}
+import { fakeToken } from '../../../testing/fake-token';
 
 const summary = { pending: 2, processing: 1, processed: 30, failed: 1, expiredLeases: 1, oldestPendingAtUtc: '2026-01-01T00:00:00Z' };
 const FAILED_ID = '11111111-aaaa-bbbb-cccc-000000000001';
@@ -31,7 +27,7 @@ describe('EventMonitorComponent', () => {
   const isList = (r: { method: string; url: string }) => r.method === 'GET' && r.url.endsWith('/outbox/messages');
 
   function setup(role = 'Admin') {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor(role));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken(role));
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(EventMonitorComponent);
     const http = TestBed.inject(HttpTestingController);
@@ -177,7 +173,7 @@ describe('roleGuard for the event monitor route', () => {
   afterEach(() => sessionStorage.clear());
 
   function run(role: string) {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor(role));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken(role));
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
     return TestBed.runInInjectionContext(() =>
       roleGuard({ data: { roles: ['Admin'] } } as never, {} as never)

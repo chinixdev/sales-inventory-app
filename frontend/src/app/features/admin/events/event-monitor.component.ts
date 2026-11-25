@@ -8,13 +8,9 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
 import { StateMessageComponent } from '../../../shared/components/state-message/state-message.component';
 import { ScrollRegionDirective } from '../../../shared/directives/scroll-region.directive';
 import { AppDatePipe } from '../../../shared/pipes/app-date.pipe';
+import { toUtcWallClock } from '../../../core/utils/date-range';
 
 export type StatusFilter = '' | OutboxStatus;
-
-/** Hora UTC (sin «Z») del instante local indicado, igual que el resto de filtros de fecha de la aplicación. */
-function toUtcWallClock(localDateTime: string): string {
-  return new Date(localDateTime).toISOString().slice(0, 23);
-}
 
 @Component({
   selector: 'app-event-monitor',

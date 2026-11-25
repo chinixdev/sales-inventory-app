@@ -49,10 +49,12 @@ public static class TelemetryServiceCollectionExtensions
             }
         }
 
-        var otel = services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource
-                .AddService(serviceName: serviceName, serviceVersion: AppTelemetry.Version)
-                .AddAttributes([new KeyValuePair<string, object>("deployment.environment.name", environment.EnvironmentName)]))
+        void DescribeResource(ResourceBuilder resource) => resource
+            .AddService(serviceName: serviceName, serviceVersion: AppTelemetry.Version)
+            .AddAttributes([new KeyValuePair<string, object>("deployment.environment.name", environment.EnvironmentName)]);
+
+        services.AddOpenTelemetry()
+            .ConfigureResource(DescribeResource)
             .WithTracing(tracing =>
             {
                 tracing
@@ -84,9 +86,9 @@ public static class TelemetryServiceCollectionExtensions
         {
             services.AddLogging(logging => logging.AddOpenTelemetry(log =>
             {
-                log.SetResourceBuilder(ResourceBuilder.CreateDefault()
-                    .AddService(serviceName: serviceName, serviceVersion: AppTelemetry.Version)
-                    .AddAttributes([new KeyValuePair<string, object>("deployment.environment.name", environment.EnvironmentName)]));
+                var resource = ResourceBuilder.CreateDefault();
+                DescribeResource(resource);
+                log.SetResourceBuilder(resource);
                 log.IncludeFormattedMessage = true;
                 log.IncludeScopes = false;
                 log.ParseStateValues = true;
@@ -94,7 +96,6 @@ public static class TelemetryServiceCollectionExtensions
             }));
         }
 
-        _ = otel;
         return services;
     }
 

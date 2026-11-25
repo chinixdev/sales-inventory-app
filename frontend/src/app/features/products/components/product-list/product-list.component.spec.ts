@@ -2,11 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ProductListComponent } from './product-list.component';
-
-function tokenFor(role: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ role, nameid: '1', exp: Math.floor(Date.now() / 1000) + 600 })}.sig`;
-}
+import { fakeToken } from '../../../../testing/fake-token';
 
 const page = {
   items: [{
@@ -18,7 +14,7 @@ const page = {
 
 describe('ProductListComponent', () => {
   function render(role: string) {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor(role));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken(role));
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(ProductListComponent);
     const http = TestBed.inject(HttpTestingController);
@@ -46,7 +42,7 @@ describe('ProductListComponent', () => {
   });
 
   it('shows the API error state with retry', () => {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor('Seller'));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken('Seller'));
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(ProductListComponent);
     const http = TestBed.inject(HttpTestingController);

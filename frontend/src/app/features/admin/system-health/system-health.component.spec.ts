@@ -7,11 +7,7 @@ import { SystemHealth } from '../../../core/models/system-health.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { SystemHealthComponent } from './system-health.component';
 import { buildBars, formatDuration } from './system-health.utils';
-
-function tokenFor(role: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ role, nameid: '1', exp: Math.floor(Date.now() / 1000) + 3600 })}.sig`;
-}
+import { fakeToken } from '../../../testing/fake-token';
 
 const INSTANCE_ID = 'aaaaaaaa-1111-2222-3333-444444444444';
 
@@ -70,7 +66,7 @@ describe('SystemHealthComponent', () => {
 
   function setup(role = 'Admin', first: SystemHealth | 'skip' = healthy()) {
     vi.useFakeTimers();
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor(role));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken(role));
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(SystemHealthComponent);
     document.body.appendChild(fixture.nativeElement);
@@ -345,7 +341,7 @@ describe('roleGuard for the system health route', () => {
   afterEach(() => sessionStorage.clear());
 
   function run(role: string) {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor(role));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken(role));
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
     return TestBed.runInInjectionContext(() => roleGuard({ data: { roles: ['Admin'] } } as never, {} as never));
   }

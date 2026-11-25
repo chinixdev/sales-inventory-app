@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { NotificationCenterComponent } from './notification-center.component';
+import { fakeToken } from '../../testing/fake-token';
 
 const page = (items: unknown[], totalItems = items.length, totalPages = 1) => ({
   items, totalItems, pageNumber: 1, pageSize: 15, totalPages, hasPreviousPage: false, hasNextPage: false
@@ -13,16 +14,11 @@ const notification = (id: number, overrides: Record<string, unknown> = {}) => ({
   currentStock: 2, minimumStock: 5, createdAtUtc: '2026-01-02T10:00:00Z', isRead: false, readAtUtc: null, ...overrides
 });
 
-function tokenFor(role: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ role, nameid: '1', exp: Math.floor(Date.now() / 1000) + 600 })}.sig`;
-}
-
 describe('NotificationCenterComponent', () => {
   const isList = (r: { method: string; url: string }) => r.method === 'GET' && r.url.endsWith('/notifications');
 
   function setup() {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor('Admin'));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken('Admin'));
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(NotificationCenterComponent);
     const http = TestBed.inject(HttpTestingController);

@@ -5,11 +5,7 @@ import { Router, provideRouter } from '@angular/router';
 import { roleGuard } from '../../../core/guards/auth.guard';
 import { AuditLogsComponent } from './audit-logs.component';
 import { buildValueRows, formatAuditValue } from './audit-values';
-
-function tokenFor(role: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ role, nameid: '1', exp: Math.floor(Date.now() / 1000) + 600 })}.sig`;
-}
+import { fakeToken } from '../../../testing/fake-token';
 
 const item = (id: number, extra: Record<string, unknown> = {}) => ({
   id, entityName: 'Products', entityId: '10', action: 'UPDATE', userId: 3, actorType: 'User', source: 'API',
@@ -27,7 +23,7 @@ describe('AuditLogsComponent', () => {
   const isDetail = (id: number) => (r: { url: string }) => r.url.endsWith(`/audit-logs/${id}`);
 
   function setup(role = 'Admin', first: object = page([item(1), item(2, { action: 'INSERT', actorType: 'System', userId: null, source: 'Worker' })])) {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor(role));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken(role));
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(AuditLogsComponent);
     document.body.appendChild(fixture.nativeElement);
@@ -428,7 +424,7 @@ describe('roleGuard for the audit route', () => {
   afterEach(() => sessionStorage.clear());
 
   function run(role: string) {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor(role));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken(role));
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
     return TestBed.runInInjectionContext(() => roleGuard({ data: { roles: ['Admin'] } } as never, {} as never));
   }

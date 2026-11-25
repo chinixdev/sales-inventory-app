@@ -2,11 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { StockMovementsComponent } from './stock-movements.component';
-
-function tokenFor(role: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ role, nameid: '1', exp: Math.floor(Date.now() / 1000) + 600 })}.sig`;
-}
+import { fakeToken } from '../../../../testing/fake-token';
 
 const product = {
   id: 7, categoryId: 1, categoryName: 'Cat', sku: 'SKU-7', name: 'Producto 7', price: 10,
@@ -21,7 +17,7 @@ const movement = {
 
 describe('StockMovementsComponent', () => {
   function render(role: string) {
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor(role));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken(role));
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(StockMovementsComponent);
     const http = TestBed.inject(HttpTestingController);

@@ -5,11 +5,9 @@ import { provideRouter } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { NotificationPollingService } from '../core/services/notification-polling.service';
 import { ShellComponent } from './shell.component';
+import { fakeToken } from '../testing/fake-token';
 
-function tokenFor(role: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ role, email: 'a@b.pe', nameid: '1', exp: Math.floor(Date.now() / 1000) + 600 })}.sig`;
-}
+const tokenFor = (role: string) => fakeToken(role, { email: 'a@b.pe' });
 
 describe('ShellComponent', () => {
   function setup(role = 'Admin', unread = 0) {

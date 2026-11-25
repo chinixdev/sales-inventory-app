@@ -19,10 +19,8 @@ public class HealthCheckTests : IClassFixture<JwtConfiguredWebApplicationFactory
     [Fact]
     public async Task GetHealth_NativeEndpoint_ReturnsOk()
     {
-        // Act
         var response = await _client.GetAsync("/health");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var content = await response.Content.ReadAsStringAsync();
         content.Should().Be("Healthy");
@@ -31,10 +29,8 @@ public class HealthCheckTests : IClassFixture<JwtConfiguredWebApplicationFactory
     [Fact]
     public async Task GetApiHealth_ControllerEndpoint_ReturnsOkWithDetails()
     {
-        // Act
         var response = await _client.GetAsync("/api/health");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var json = await response.Content.ReadFromJsonAsync<JsonObject>();
         json.Should().NotBeNull();

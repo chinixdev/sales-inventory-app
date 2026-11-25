@@ -4,11 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { afterEach, beforeEach, vi } from 'vitest';
 import { AuthService } from './auth.service';
 import { NotificationPollingService } from './notification-polling.service';
-
-function tokenFor(role: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
-  return `${encode({ alg: 'HS256' })}.${encode({ role, nameid: '1', exp: Math.floor(Date.now() / 1000) + 600 })}.sig`;
-}
+import { fakeToken } from '../../testing/fake-token';
 
 describe('NotificationPollingService', () => {
   let http: HttpTestingController;
@@ -17,7 +13,7 @@ describe('NotificationPollingService', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    sessionStorage.setItem('salesinventory.accessToken', tokenFor('Admin'));
+    sessionStorage.setItem('salesinventory.accessToken', fakeToken('Admin'));
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     http = TestBed.inject(HttpTestingController);
     service = TestBed.inject(NotificationPollingService);

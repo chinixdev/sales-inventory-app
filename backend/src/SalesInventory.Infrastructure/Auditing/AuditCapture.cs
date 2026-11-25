@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using SalesInventory.Application.Audit;
 using SalesInventory.Application.Common.Interfaces;

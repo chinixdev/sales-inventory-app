@@ -151,6 +151,10 @@ cd frontend && npm ci && npm start                         # http://localhost:42
 
 The Worker shares the API's User Secrets. Run the tests with `dotnet test backend/SalesInventory.sln` (integration tests need `SALESINVENTORY_TEST_CONNECTION` or the Development connection string) and `npx ng test --watch=false` in `frontend`.
 
+## Demo mode
+
+With `Demo__Enabled=true` the API applies migrations and loads sample products, stock, sales and a demo seller on an empty database (never overwrites existing data). `frontend/vercel.json` is ready to host the SPA on Vercel. See [docs/DEMO.md](docs/DEMO.md) (Spanish). No public demo URL exists yet.
+
 ## Screenshots
 
 No screenshots have been added yet. They should be taken from the running application and placed in `docs/screenshots/`.

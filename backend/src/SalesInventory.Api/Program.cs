@@ -10,6 +10,7 @@ using SalesInventory.Application;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SalesInventory.Infrastructure;
+using SalesInventory.Infrastructure.Demo;
 using SalesInventory.Infrastructure.Observability;
 using SalesInventory.Infrastructure.Security;
 
@@ -84,6 +85,12 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue<bool>("Demo:Enabled"))
+{
+    await using var demoScope = app.Services.CreateAsyncScope();
+    await demoScope.ServiceProvider.GetRequiredService<DemoDataSeeder>().SeedAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {

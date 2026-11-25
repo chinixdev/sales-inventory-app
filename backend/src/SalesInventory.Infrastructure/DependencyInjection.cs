@@ -6,6 +6,7 @@ using SalesInventory.Application.Common.Interfaces;
 using SalesInventory.Application.Auth.Interfaces;
 using SalesInventory.Application.Monitoring;
 using SalesInventory.Infrastructure.Auditing;
+using SalesInventory.Infrastructure.Demo;
 using SalesInventory.Infrastructure.Monitoring;
 using SalesInventory.Infrastructure.Persistence;
 using SalesInventory.Infrastructure.Security;
@@ -40,6 +41,9 @@ public static class DependencyInjection
         services.Configure<SystemHealthOptions>(configuration.GetSection(SystemHealthOptions.SectionName));
         services.AddScoped<ISystemHealthService, SystemHealthService>();
         services.AddScoped<WorkerHeartbeatStore>();
+        // Modo demo (Demo:Enabled=true): carga datos de ejemplo en una base vacía.
+        services.Configure<DemoOptions>(configuration.GetSection(DemoOptions.SectionName));
+        services.AddScoped<DemoDataSeeder>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));

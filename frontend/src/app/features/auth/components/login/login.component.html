@@ -1,3 +1,4 @@
+@if (isDemo) { <app-demo-banner /> }
 <main class="auth-page">
   <section class="auth-brand" aria-hidden="true">
     <span class="brand-mark">SI</span>
@@ -28,6 +29,9 @@
         <button type="submit" class="btn-submit" [disabled]="isLoading() || loginForm.invalid">
           {{ isLoading() ? 'Verificando…' : 'Entrar' }}
         </button>
+        @if (isDemo) {
+          <button type="button" class="btn-demo" (click)="loginAsDemo()" [disabled]="isLoading()">Entrar como usuario demo</button>
+        }
       </form>
     </div>
   </section>

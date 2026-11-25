@@ -6,6 +6,8 @@ import { AuthService } from '../core/services/auth.service';
 import { NotificationPollingService } from '../core/services/notification-polling.service';
 import { IconComponent } from '../shared/components/icon/icon.component';
 import { NotificationBellComponent } from '../shared/components/notification-bell/notification-bell.component';
+import { DemoBannerComponent } from '../shared/components/demo-banner/demo-banner.component';
+import { isDemoMode } from '../core/demo/demo-mode';
 import { NAV_ITEMS } from './nav-items';
 
 const MOBILE_BREAKPOINT = 900;
@@ -13,7 +15,7 @@ const MOBILE_BREAKPOINT = 900;
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, NotificationBellComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, NotificationBellComponent, DemoBannerComponent],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.scss']
 })
@@ -31,6 +33,7 @@ export class ShellComponent {
   );
   protected readonly user = this.auth.currentUser;
   protected readonly menuOpen = signal(false);
+  protected readonly isDemo = isDemoMode;
 
   private readonly menuButton = viewChild<ElementRef<HTMLButtonElement>>('menuButton');
   private readonly mainContent = viewChild<ElementRef<HTMLElement>>('mainContent');

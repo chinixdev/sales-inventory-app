@@ -153,7 +153,17 @@ The Worker shares the API's User Secrets. Run the tests with `dotnet test backen
 
 ## Demo mode
 
-With `Demo__Enabled=true` the API applies migrations and loads sample products, stock, sales and a demo seller on an empty database (never overwrites existing data). `frontend/vercel.json` is ready to host the SPA on Vercel. See [docs/DEMO.md](docs/DEMO.md) (Spanish). No public demo URL exists yet.
+Two options, described in [docs/DEMO.md](docs/DEMO.md) (Spanish):
+
+- **Frontend-only demo (for Vercel).** Build with `VITE_DEMO_MODE=true` and the SPA runs against a simulated API in the browser: fictitious data in `localStorage`, a one-click demo login and a reset button, with a visible "demo mode" banner. No backend or database is involved and the real backend is not deployed in this mode. Run it locally with `npm run start:demo`; `frontend/vercel.json` configures the Vercel build and SPA routing.
+- **Seeded backend.** `Demo__Enabled=true` makes the real API load sample data into an empty database.
+
+| | Normal mode | Demo mode |
+|---|---|---|
+| API | Real backend | Simulated in the browser (`frontend/src/app/core/demo`) |
+| Data | SQL Server | Fictitious, in `localStorage` |
+| Login | Real accounts (JWT) | Public fictitious demo user |
+| Admin monitoring screens | Real data | Simulated, consistent with the demo data |
 
 ## Screenshots
 

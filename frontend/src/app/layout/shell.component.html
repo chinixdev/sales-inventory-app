@@ -28,6 +28,7 @@
   }
 
   <div class="content-area">
+    @if (isDemo) { <app-demo-banner /> }
     <header class="topbar">
       <button type="button" #menuButton class="icon-btn menu-btn" aria-controls="sidebar"
               [attr.aria-expanded]="menuOpen()" aria-label="Abrir menú de navegación" (click)="toggleMenu()">

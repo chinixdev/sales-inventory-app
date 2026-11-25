@@ -1,32 +1,46 @@
-# Modo demo (para publicar una demostración)
+# Modo demo
 
-La demo se compone de tres piezas: frontend en Vercel, API .NET con su base SQL Server en un hosting con soporte para .NET, y datos de ejemplo cargados por el propio backend.
+Hay dos formas de tener una demostración. La primera es la que se publica en Vercel.
 
-## 1. Datos de demostración (backend)
+## A. Demo solo con frontend (sin backend ni base de datos)
 
-Con `Demo__Enabled=true` la API, al arrancar, aplica las migraciones y carga 13 productos, 3 categorías, el stock inicial y 30 ventas recientes con su kardex. Si la base ya tiene productos no hace nada (nunca pisa datos).
+El frontend incluye una API simulada que corre en el navegador: datos ficticios realistas (13 productos, 3 categorías, 30 ventas recientes, kardex, notificaciones, eventos del Outbox y auditoría) guardados en `localStorage`. Se puede navegar y operar (crear productos y categorías, registrar entradas, ajustes y ventas, leer notificaciones), pero **nada llega a un servidor** y los datos son solo de ese navegador.
 
-Variables de entorno del hosting (no se guardan en el repositorio):
+| | Modo normal | Modo demo |
+|---|---|---|
+| API | Backend real (`/api`) | Simulada en el navegador (`core/demo`) |
+| Datos | SQL Server | `localStorage`, ficticios |
+| Acceso | Cuenta real | Botón «Entrar como usuario demo» (usuario ficticio con rol Admin) |
+| Restablecer | n/a | Botón «Restablecer datos» del aviso amarillo |
+| Pantallas de monitoreo (Outbox, auditoría, estado del sistema) | Datos reales | Datos simulados coherentes con la demo; no hay Worker ni SQL Server detrás |
 
-| Variable | Descripción |
-|---|---|
-| `Demo__Enabled` | `true` para activar el modo demo |
-| `Demo__SellerPassword` | Contraseña del vendedor de demostración (12 caracteres o más). Usuario: `demo.seller@salesinventory.demo` |
-| `Demo__AdminPassword` | Opcional. Si se omite, no se crea administrador y la demo pública queda sin acceso a auditoría, monitoreo ni escritura de catálogo |
-| `ConnectionStrings__DefaultConnection` | Cadena de conexión de la base de la demo |
-| `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey` | Configuración JWT (clave aleatoria de 32 bytes o más) |
-| `Cors__AllowedOrigins__0` | URL del frontend en Vercel (no hace falta si usas el rewrite `/api` del paso 2) |
+El modo se fija al compilar con la variable `VITE_DEMO_MODE` (`true` = demo, cualquier otro valor = API real).
 
-Para probarlo en local (PowerShell): `$env:Demo__Enabled="true"; $env:Demo__SellerPassword="<12+ caracteres>"; dotnet run --project backend/src/SalesInventory.Api`.
+### Ejecutar en local (PowerShell)
 
-## 2. Frontend en Vercel
+```powershell
+cd frontend
+npm ci
+npm run start:demo        # http://localhost:4200, modo demo
+npm start                 # modo normal (requiere el backend)
+```
 
-1. En Vercel importa el repositorio y define **Root Directory = `frontend`**.
-2. En `frontend/vercel.json` reemplaza `REEMPLAZA-CON-LA-URL-DE-TU-API` por el host público de tu API. Ese archivo redirige `/api/*` a la API, así que el frontend sigue llamando a `/api` del mismo origen y no se necesita configurar CORS.
-3. Despliega. Entra con el usuario vendedor de demostración.
+### Compilar
 
-## 3. Recomendaciones
+```powershell
+$env:VITE_DEMO_MODE = "true"; npm run build     # build de producción en modo demo
+npm run build:demo                              # equivalente directo
+Remove-Item Env:VITE_DEMO_MODE; npm run build   # build normal (API real)
+```
 
-- Publica solo el usuario vendedor. Si publicas el administrador, cualquiera puede modificar datos; en ese caso reinicia la base periódicamente.
-- El Worker (notificaciones de stock) es un proceso aparte: sin él la demo funciona, pero las alertas de stock no se generan.
-- Indica en el README la URL y las credenciales de demostración solo cuando existan; no se inventan.
+### Desplegar en Vercel
+
+1. Importa el repositorio en Vercel y define **Root Directory = `frontend`**.
+2. `frontend/vercel.json` ya fija el comando de build, la carpeta de salida (`dist/sales-inventory-app/browser`), `VITE_DEMO_MODE=true` y la regla que devuelve `index.html` en cualquier ruta (necesaria para las rutas de Angular).
+3. Despliega. No se necesitan variables ni secretos: el usuario demo es ficticio y público.
+
+El backend no está desplegado en este modo: no se conecta a ninguna API.
+
+## B. Datos de ejemplo en el backend real
+
+Con `Demo__Enabled=true` la API aplica las migraciones y carga datos de ejemplo en una base **vacía** (nunca pisa datos existentes). Variables: `Demo__SellerPassword` (obligatoria, 12 caracteres o más), `Demo__AdminPassword` (opcional) y las habituales `ConnectionStrings__DefaultConnection` y `Jwt__*`. Usuario vendedor: `demo.seller@salesinventory.demo`. Si publicas el administrador, cualquiera podría modificar datos.

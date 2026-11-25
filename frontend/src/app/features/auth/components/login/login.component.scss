@@ -56,3 +56,10 @@
   .auth-page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .auth-brand { padding: 1.5rem; border-right: 0; border-bottom: 3px solid var(--color-gold); h2 { font-size: 1.4rem; } p { display: none; } }
 }
+
+.btn-demo {
+  width: 100%; margin-top: .75rem; min-height: 44px; padding: .6rem 1rem; cursor: pointer; font-weight: 600;
+  background: #fff; color: var(--color-primary); border: 1.5px solid var(--color-gold); border-radius: 8px;
+  &:hover:not(:disabled) { background: #fbf6e8; }
+  &:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+}

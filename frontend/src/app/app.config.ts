@@ -4,6 +4,8 @@ import localeEsPe from '@angular/common/locales/es-PE';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { demoApiInterceptor } from './core/demo/demo-api.interceptor';
+import { isDemoMode } from './core/demo/demo-mode';
 import { routes } from './app.routes';
 
 registerLocaleData(localeEsPe);
@@ -13,6 +15,6 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     { provide: LOCALE_ID, useValue: 'es-PE' },
     provideRouter(routes),
-    provideHttpClient(withFetch(), withInterceptors([authInterceptor]))
+    provideHttpClient(withFetch(), withInterceptors(isDemoMode ? [demoApiInterceptor, authInterceptor] : [authInterceptor]))
   ]
 };
